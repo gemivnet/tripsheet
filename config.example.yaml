@@ -1,0 +1,38 @@
+# tripsheet — application config
+#
+# Copy this file to `config.yaml` and customize. `config.yaml` is git-ignored.
+# Secrets (API keys, session secret) belong in `.env`, not here.
+
+# HTTP port the server listens on. Mapped to the host via docker-compose.
+port: 3000
+
+# Emails allowed to sign up for this instance. Anyone not on this list is
+# rejected at signup time. Signup is the only way to create an account;
+# there is no admin UI. Keep this list small — tripsheet is a single-workspace
+# app shared across these users.
+allowed_emails:
+  - shared@example.com
+  - partner@example.com
+
+# AI suggestion settings.
+ai:
+  # Anthropic model ID used for suggestion runs and PDF parsing.
+  # Override per-environment via ANTHROPIC_MODEL in .env.
+  model: claude-sonnet-4-5
+
+  # Extended thinking budget (tokens). Higher = deeper reasoning, more cost.
+  # Set to 0 to disable extended thinking.
+  thinking_budget_tokens: 8000
+
+  # Max suggestions returned per "Research & suggest" run. Keep modest so the
+  # swipe deck stays short enough to actually work through.
+  max_suggestions: 8
+
+  # Web search tool cap (per run). The tool will stop after this many searches.
+  # 0 disables web search entirely (extended thinking still runs on context).
+  max_web_searches: 6
+
+# Upload limits for reference PDFs.
+uploads:
+  # Reject PDFs larger than this (bytes). Default: 25 MB.
+  max_bytes: 26214400

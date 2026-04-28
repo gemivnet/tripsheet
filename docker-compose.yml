@@ -1,0 +1,14 @@
+services:
+  tripsheet:
+    build: .
+    container_name: tripsheet
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: America/Chicago
+      DATA_DIR: /app/data
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data

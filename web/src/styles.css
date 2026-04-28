@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --bg:         oklch(95.5% 0.012 78);
+  --surface:    oklch(98.8% 0.007 75);
+  --border:     oklch(89% 0.016 75);
+  --text:       oklch(22% 0.022 65);
+  --text-muted: oklch(54% 0.016 65);
+  --accent:     oklch(56% 0.14 48);
+}
+
+html, body, #root { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, textarea, select, button { font-family: var(--font-body); font-size: inherit; color: inherit; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+
+@keyframes fly-in {
+  from { transform: translateX(40px) scale(0.94); opacity: 0; }
+  to   { transform: translateX(0)    scale(1);    opacity: 1; }
+}
+
+/* Auth screen (Login.tsx) */
+.auth-page {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%;
+  background: var(--bg);
+}
+.auth-card {
+  background: var(--surface);
+  padding: 32px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px oklch(20% 0.04 65 / 0.08);
+  width: 380px;
+}
+.auth-card h1 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 18px;
+  color: var(--text);
+}
+.auth-card form { display: flex; flex-direction: column; gap: 10px; }
+.auth-card .row { display: flex; gap: 8px; }
+.auth-card .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.auth-card .tabs button {
+  flex: 1; padding: 8px 0; border-radius: 8px;
+  border: 1.5px solid var(--border); background: transparent;
+  color: var(--text-muted); font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.auth-card .tabs button.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.auth-card input {
+  border: 1.5px solid var(--border); background: var(--bg);
+  padding: 9px 11px; border-radius: 8px; font-size: 13.5px;
+  outline: none; transition: border-color 0.15s;
+}
+.auth-card input:focus { border-color: var(--accent); }
+.auth-card button[type="submit"] {
+  padding: 10px; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff; font-weight: 700;
+  cursor: pointer; font-size: 14px;
+}
+.auth-card .error { color: oklch(52% 0.18 25); font-size: 13px; }
+
+/* Trips list */
+.trips-page { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+.trips-page h2 {
+  font-family: var(--font-display); font-size: 28px; font-weight: 700;
+  letter-spacing: -0.02em; margin-bottom: 16px;
+}
+.trips-list { display: grid; gap: 12px; margin-top: 16px; }
+.trip-card {
+  background: var(--surface); padding: 16px; border-radius: 10px;
+  border: 1.5px solid var(--border); cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.trip-card:hover { border-color: var(--accent); box-shadow: 0 4px 16px oklch(60% 0.12 48 / 0.08); }
+.trip-card h3 { font-family: var(--font-display); font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+.trip-card .meta { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+.new-trip-form {
+  background: var(--surface); padding: 18px; border-radius: 10px;
+  border: 1.5px solid var(--border); display: grid; gap: 10px;
+}
+.new-trip-form input {
+  border: 1.5px solid var(--border); background: var(--bg);
+  padding: 9px 11px; border-radius: 8px; font-size: 13.5px; outline: none;
+}
+.new-trip-form button {
+  padding: 9px 16px; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff; font-weight: 700; cursor: pointer;
+  justify-self: start;
+}
+
+/* Top header in editor uses inline styles — nothing else needed here. */

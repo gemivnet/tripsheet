@@ -1,0 +1,29 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+web/dist/
+*.tsbuildinfo
+config.yaml
+config.*.yaml
+!config.example.yaml
+coverage/
+reports/
+.claude/
+
+# Persistent app state — SQLite database and uploaded reference PDFs
+data/
+
+# Scratch folder for sample PDFs the user drops in locally (never committed)
+reference_samples/
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+notes.md
