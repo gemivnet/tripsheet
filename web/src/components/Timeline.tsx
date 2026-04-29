@@ -207,7 +207,15 @@ function DaySection({
             const prevRowLastItem = rowIdx > 0 ? rows[rowIdx - 1][rows[rowIdx - 1].length - 1] : null;
             const firstItem = row[0];
             const showAnytimeDivider = !!prevRowLastItem && !!prevRowLastItem.start_time && !firstItem?.start_time;
-            const gap = prevRowLastItem && firstItem?.start_time && (prevRowLastItem.end_time || prevRowLastItem.start_time)
+            // Synthetic markers (check-in opens, arrival shadows) are not
+            // real schedule entries — measuring "X between" against them
+            // adds noise without meaning.
+            const eitherIsSynthetic = !!(
+              prevRowLastItem?._checkInOpen || prevRowLastItem?._arrivalShadow ||
+              firstItem?._checkInOpen || firstItem?._arrivalShadow
+            );
+            const gap = !eitherIsSynthetic && prevRowLastItem && firstItem?.start_time
+              && (prevRowLastItem.end_time || prevRowLastItem.start_time)
               ? gapMinutes(prevRowLastItem, firstItem)
               : null;
             const isParallel = row.length > 1;
@@ -428,17 +436,28 @@ function wouldBreakOrder(items: Item[], fromIdx: number, toIdx: number): boolean
   return false;
 }
 
-function spansNextDay(item: Item): boolean {
-  if (item.start_time && item.end_time && item.end_time < item.start_time) return true;
+/**
+ * Days the item's end falls *after* its start, in calendar-day units.
+ * 0 → same day, 1 → +1d, 2 → +2d, etc. Used to render "+Nd" hints next
+ * to wrap-around end times so a Thursday→Saturday flight reads as +2d
+ * instead of +1d.
+ */
+function dayOffset(item: Item): number {
   try {
     const a = JSON.parse(item.attributes_json) as {
       departure_date?: string;
       arrival_date?: string;
       arrival_day_offset?: number;
     };
-    if (a.departure_date && a.arrival_date) return a.arrival_date > a.departure_date;
-    return (a.arrival_day_offset ?? 0) > 0;
-  } catch { return false; }
+    if (a.departure_date && a.arrival_date) {
+      const dep = new Date(a.departure_date + 'T12:00:00Z').getTime();
+      const arr = new Date(a.arrival_date + 'T12:00:00Z').getTime();
+      return Math.max(0, Math.round((arr - dep) / 86_400_000));
+    }
+    if (a.arrival_day_offset != null) return Math.max(0, a.arrival_day_offset);
+  } catch { /* fall through */ }
+  if (item.start_time && item.end_time && item.end_time < item.start_time) return 1;
+  return 0;
 }
 
 /**
@@ -879,7 +898,7 @@ function ItemCard({
             )}
             {item.end_time && item.end_time !== item.start_time && (
               <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', opacity: 0.75 }}>
-                –{item.end_time}{spansNextDay(item) ? ' +1d' : ''}
+                –{item.end_time}{(() => { const n = dayOffset(item); return n > 0 ? ` +${n}d` : ''; })()}
                 {item.end_tz && item.end_tz !== item.tz && (
                   <span style={{ display: 'block', fontSize: 9, color: 'oklch(40% 0.1 220)', fontWeight: 700 }}>
                     {shortTz(item.end_tz)}
@@ -962,7 +981,7 @@ function ItemCard({
               {duration != null && <span>{formatDuration(duration)}</span>}
               {item.end_time && (
                 <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-                  {duration != null ? '· ' : ''}ends {item.end_time}{spansNextDay(item) ? ' (+1d)' : ''}
+                  {duration != null ? '· ' : ''}ends {item.end_time}{(() => { const n = dayOffset(item); return n > 0 ? ` (+${n}d)` : ''; })()}
                 </span>
               )}
             </div>

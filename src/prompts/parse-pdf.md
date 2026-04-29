@@ -74,7 +74,8 @@ include fields that are actually present — never fabricate. Omit
   "arrival_airport": "IATA code, e.g. NRT",
   "arrival_date": "YYYY-MM-DD",
   "arrival_time": "HH:MM",
-  "seat": "e.g. 32A"
+  "seat": "e.g. 32A",
+  "booked_under_name": "whose name's on the ticket — when the document names the passenger"
 }
 ```
 Note: for flights, `departure_date`/`departure_time` and
@@ -92,7 +93,8 @@ processed.
   "party_size": 2,
   "policy_time": "HH:MM  (earliest check-in / latest check-out)",
   "rate": "e.g. $320/night",
-  "cancellation": "e.g. Free cancellation until 48h before"
+  "cancellation": "e.g. Free cancellation until 48h before",
+  "booked_under_name": "whose name's on the booking — when the document names the guest"
 }
 ```
 Note: `policy_time` sets the item's timeline position. Populate `start_time`
@@ -107,7 +109,8 @@ at the top level with the same value.
   "cuisine": "e.g. Italian, ramen, brunch spot",
   "party_size": 2,
   "price_level": "$" | "$$" | "$$$" | "$$$$",
-  "dress_code": "e.g. smart casual"
+  "dress_code": "e.g. smart casual",
+  "booked_under_name": "whose name's on the reservation — when named in the document"
 }
 ```
 Use `meal` for any eating-related item — restaurants, brunch spots, drinks,
@@ -127,7 +130,8 @@ old town."
   "opens_at": "HH:MM  (venue opening time, NOT the reservation time)",
   "closes_at": "HH:MM  (venue closing time)",
   "price_level": "$" | "$$" | "$$$" | "$$$$",
-  "dress_code": "e.g. smart casual"
+  "dress_code": "e.g. smart casual",
+  "booked_under_name": "whose name's on the reservation — when named in the document"
 }
 ```
 Note: the reservation time (when the user is booked) goes in the top-level
@@ -143,7 +147,8 @@ Note: the reservation time (when the user is booked) goes in the top-level
   "includes_meals": "yes" | "no" | "some",
   "meal_plan": "free-form, e.g. 'all meals' or 'breakfast only'",
   "price": "e.g. $1,200 per person",
-  "cancellation": "cancellation terms"
+  "cancellation": "cancellation terms",
+  "booked_under_name": "whose name's on the booking — when named in the document"
 }
 ```
 Use `package` for any item that spans multiple days as a single booking —

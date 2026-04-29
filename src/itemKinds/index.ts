@@ -112,6 +112,7 @@ const FlightAttrs = z.object({
   // confirmation kept in schema for backcompat (old data), but the base
   // item confirmation column is canonical — see derive() below.
   confirmation: z.string().max(40).optional(),
+  booked_under_name: z.string().max(120).optional(),
 }).partial();
 
 const flight: ItemKindDef = {
@@ -133,6 +134,7 @@ const flight: ItemKindDef = {
     { name: 'arrival_date',      label: 'Arrival date',      type: 'date' },
     { name: 'arrival_time',      label: 'Arrival time',      type: 'time' },
     { name: 'seat',              label: 'Seat',              type: 'text',   placeholder: 'e.g. 32A' },
+    { name: 'booked_under_name', label: 'Booked under',      type: 'text',   placeholder: "Whose name's on the ticket" },
     // Confirmation # is the base item field — shown in top-level form, not duplicated here.
   ],
   attrs: FlightAttrs,
@@ -195,6 +197,7 @@ const LodgingAttrs = z.object({
   confirmation: z.string().max(40).optional(),
   rate: z.string().max(40).optional(),  // free text — currencies + caveats
   cancellation: z.string().max(200).optional(),
+  booked_under_name: z.string().max(120).optional(),
 }).partial();
 
 function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string): ItemKindDef {
@@ -214,9 +217,10 @@ function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string)
       { name: 'room_type',     label: 'Room',             type: 'text', placeholder: 'e.g. King with view' },
       { name: 'party_size',    label: 'Party size',       type: 'number' },
       { name: 'policy_time',   label: kind === 'checkin' ? 'Earliest check-in' : 'Latest check-out', type: 'time' },
-      { name: 'rate',          label: 'Nightly rate',     type: 'text' },
+      { name: 'rate',              label: 'Nightly rate',     type: 'text' },
       // Confirmation # is the base item field — shown in top-level form, not duplicated here.
-      { name: 'cancellation',  label: 'Cancellation',     type: 'text', placeholder: 'e.g. Free until 48h before' },
+      { name: 'booked_under_name', label: 'Booked under',     type: 'text', placeholder: "Whose name's on the reservation" },
+      { name: 'cancellation',      label: 'Cancellation',     type: 'text', placeholder: 'e.g. Free until 48h before' },
     ],
     attrs: LodgingAttrs,
     derive(attrs) {
@@ -247,6 +251,7 @@ const MealAttrs = z.object({
   party_size: z.number().int().min(1).max(50).optional(),
   price_level: z.enum(['$', '$$', '$$$', '$$$$']).optional(),
   dress_code: z.string().max(60).optional(),
+  booked_under_name: z.string().max(120).optional(),
 }).partial();
 
 const meal: ItemKindDef = {
@@ -262,8 +267,9 @@ const meal: ItemKindDef = {
     { name: 'address',     label: 'Address',      type: 'text' },
     { name: 'cuisine',     label: 'Cuisine',      type: 'text', placeholder: 'e.g. Italian, ramen' },
     { name: 'party_size',  label: 'Party of',     type: 'number' },
-    { name: 'price_level', label: 'Price',        type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
-    { name: 'dress_code',  label: 'Dress code',   type: 'text' },
+    { name: 'price_level',       label: 'Price',        type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
+    { name: 'dress_code',        label: 'Dress code',   type: 'text' },
+    { name: 'booked_under_name', label: 'Booked under', type: 'text', placeholder: "Whose name's on the reservation" },
     // Confirmation # is the base item field — set it if you have a reservation, leave blank otherwise.
   ],
   attrs: MealAttrs,
@@ -292,6 +298,7 @@ const ReservationAttrs = z.object({
   closes_at: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   price_level: z.enum(['$', '$$', '$$$', '$$$$']).optional(),
   dress_code: z.string().max(60).optional(),
+  booked_under_name: z.string().max(120).optional(),
 }).partial();
 
 const reservation: ItemKindDef = {
@@ -307,8 +314,9 @@ const reservation: ItemKindDef = {
     { name: 'party_size',  label: 'Party of',     type: 'number' },
     { name: 'opens_at',    label: 'Venue opens',  type: 'time' },
     { name: 'closes_at',   label: 'Venue closes', type: 'time' },
-    { name: 'price_level', label: 'Price',        type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
-    { name: 'dress_code',  label: 'Dress code',   type: 'text' },
+    { name: 'price_level',       label: 'Price',        type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
+    { name: 'dress_code',        label: 'Dress code',   type: 'text' },
+    { name: 'booked_under_name', label: 'Booked under', type: 'text', placeholder: "Whose name's on the reservation" },
     // Confirmation # is the base item field — shown in top-level form, not duplicated here.
   ],
   attrs: ReservationAttrs,
@@ -383,6 +391,7 @@ const PackageAttrs = z.object({
   meal_plan: z.string().max(200).optional(),  // free-form: "All meals included", "Breakfast only", etc.
   price: z.string().max(40).optional(),
   cancellation: z.string().max(200).optional(),
+  booked_under_name: z.string().max(120).optional(),
 }).partial();
 
 const packageDef: ItemKindDef = {
@@ -398,8 +407,9 @@ const packageDef: ItemKindDef = {
     { name: 'includes_lodging', label: 'Lodging included?', type: 'select', options: ['yes', 'no'] },
     { name: 'includes_meals',   label: 'Meals included?',   type: 'select', options: ['yes', 'no', 'some'] },
     { name: 'meal_plan',        label: 'Meal plan',         type: 'text',   placeholder: 'e.g. All meals · Breakfast only' },
-    { name: 'price',            label: 'Price',             type: 'text' },
-    { name: 'cancellation',     label: 'Cancellation',      type: 'text' },
+    { name: 'price',             label: 'Price',             type: 'text' },
+    { name: 'booked_under_name', label: 'Booked under',      type: 'text', placeholder: "Whose name's on the booking" },
+    { name: 'cancellation',      label: 'Cancellation',      type: 'text' },
   ],
   attrs: PackageAttrs,
   derive(attrs) {
