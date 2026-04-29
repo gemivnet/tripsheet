@@ -589,6 +589,11 @@ function durationMinutes(item: Item): number | null {
     const endUtc = wallClockToUtc(endDate, item.end_time, item.end_tz);
     let diff = Math.round((endUtc - startUtc) / 60000);
     if (diff < 0 && extraDays === 0) diff += 24 * 60;
+    // Negative even after the +1d offset means the source data is
+    // self-contradictory (e.g. arrival_date set to +1d when it should
+    // be +2d). Refuse to display a misleading negative duration —
+    // detectFlightTimingErrors surfaces it as a day warning instead.
+    if (diff < 0) return null;
     return diff;
   }
 
@@ -597,7 +602,8 @@ function durationMinutes(item: Item): number | null {
   const [h2, m2] = item.end_time.split(':').map(Number);
   let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
   if (mins < 0) mins += 24 * 60;
-  return mins + extraDays * 24 * 60;
+  const total = mins + extraDays * 24 * 60;
+  return total < 0 ? null : total;
 }
 
 function utcOffsetMinutes(date: Date, tz: string): number {
@@ -947,16 +953,16 @@ function ItemCard({
           marginTop: 'auto', paddingTop: 6, paddingLeft: 56,
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          {duration != null && (
+          {(duration != null || item.end_time) && (
             <div style={{
               fontSize: 10, fontWeight: 600, letterSpacing: '0.05em',
               color: `oklch(48% 0.12 ${hue})`, textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span>{formatDuration(duration)}</span>
+              {duration != null && <span>{formatDuration(duration)}</span>}
               {item.end_time && (
                 <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-                  · ends {item.end_time}{spansNextDay(item) ? ' (+1d)' : ''}
+                  {duration != null ? '· ' : ''}ends {item.end_time}{spansNextDay(item) ? ' (+1d)' : ''}
                 </span>
               )}
             </div>

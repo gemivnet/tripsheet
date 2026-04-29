@@ -346,6 +346,53 @@ export function enumerateDates(start: string, end: string): string[] {
   return out;
 }
 
+/**
+ * tz-aware end-to-end minutes for a transit item, used by the warning
+ * detector to spot impossible flight times. Returns 0 (i.e. no warning)
+ * when we don't have enough info to judge — a tz-less fallback would
+ * give bogus positives.
+ */
+function transitDurationMinutes(item: Item): number {
+  if (!item.tz || !item.end_tz || !item.start_time || !item.end_time || !item.day_date) return 0;
+  let extraDays = 0;
+  try {
+    const a = JSON.parse(item.attributes_json) as { departure_date?: string; arrival_date?: string };
+    if (a.departure_date && a.arrival_date) {
+      const dep = new Date(a.departure_date + 'T12:00:00Z').getTime();
+      const arr = new Date(a.arrival_date + 'T12:00:00Z').getTime();
+      extraDays = Math.max(0, Math.round((arr - dep) / 86_400_000));
+    }
+  } catch { /* keep 0 */ }
+  const startUtc = wallClockToUtc(item.day_date, item.start_time, item.tz);
+  const endIso = (() => {
+    const d = new Date(item.day_date + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + extraDays);
+    return d.toISOString().slice(0, 10);
+  })();
+  const endUtc = wallClockToUtc(endIso, item.end_time, item.end_tz);
+  return Math.round((endUtc - startUtc) / 60000);
+}
+
+function utcOffsetMinutes(date: Date, tz: string): number {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const parts = fmt.formatToParts(date);
+  const get = (t: string): number => Number(parts.find((p) => p.type === t)?.value);
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  return Math.round((asUtc - date.getTime()) / 60000);
+}
+
+function wallClockToUtc(date: string, time: string, tz: string): number {
+  const naive = new Date(`${date}T${time}:00Z`).getTime();
+  let off = utcOffsetMinutes(new Date(naive), tz);
+  const utc = naive - off * 60000;
+  off = utcOffsetMinutes(new Date(utc), tz);
+  return naive - off * 60000;
+}
+
 export function detectWarnings(items: Item[]): string[] {
   const out: string[] = [];
   // Arrival shadows are display-only — they shouldn't trigger warnings
@@ -365,6 +412,17 @@ export function detectWarnings(items: Item[]): string[] {
   });
   if (real.length > 0 && !kinds.has('meal') && !kinds.has('reservation') && !hasMealTitle && !packageCoversMeals) {
     out.push('No meal plans yet — consider adding breakfast, lunch, or dinner.');
+  }
+
+  // Flag flights whose stored times can't possibly add up — usually a
+  // PDF-parse miss where arrival_date is +1d when it should be +2d, or
+  // an arrival_time written for the wrong leg. Surface it so the user
+  // can fix the source data instead of staring at "−270 min."
+  for (const it of real) {
+    if (it.kind !== 'transit' || !it.start_time || !it.end_time) continue;
+    if (transitDurationMinutes(it) < 0) {
+      out.push(`"${it.title}" lands before it leaves — check the arrival date/time.`);
+    }
   }
 
   // Checkin = earliest possible; flag any timed item before it.
