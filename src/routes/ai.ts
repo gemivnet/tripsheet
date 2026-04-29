@@ -45,6 +45,9 @@ export function aiRouter(db: DB, config: Config, uploadDir: string): Router {
       res.json(result);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      // Log the full stack so a "NetworkError" from the client lines up
+      // against a concrete server-side failure when we go to debug.
+      console.error('[chat]', e);
       res.status(500).json({ error: msg });
     }
   });

@@ -738,14 +738,17 @@ function AiTab({ state }: { state: EditorState }): JSX.Element {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {starters.map((s) => (
                 <button
-                  key={s} onClick={() => setInput(s)}
+                  key={s}
+                  onClick={() => { if (!aiLoading) void sendAiMessage(s); }}
+                  disabled={aiLoading}
                   style={{
                     padding: '9px 14px', borderRadius: 8,
                     border: '1.5px solid var(--border)', background: 'var(--surface)',
-                    color: 'var(--text)', fontSize: 12.5, cursor: 'pointer',
+                    color: 'var(--text)', fontSize: 12.5, cursor: aiLoading ? 'default' : 'pointer',
                     textAlign: 'left', transition: 'border-color 0.15s',
+                    opacity: aiLoading ? 0.5 : 1,
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                  onMouseEnter={(e) => { if (!aiLoading) e.currentTarget.style.borderColor = 'var(--accent)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
                 >{s}</button>
               ))}

@@ -319,6 +319,7 @@ const r = await api.listSuggestions(tripId);
 
   const sendAiMessage = useCallback(
     async (text: string): Promise<void> => {
+      if (!tripId) return;
       const nextHistory: ChatMessage[] = [...aiMessages, { role: 'user', content: text }];
       setAiMessages(nextHistory);
       setAiLoading(true);
@@ -327,9 +328,26 @@ const r = await api.listSuggestions(tripId);
         setAiMessages([...nextHistory, { role: 'assistant', content: r.reply }]);
         setAiSuggestions((prev) => [...r.suggestions, ...prev]);
       } catch (err) {
+        // Tell the user what actually went wrong so they can fix it
+        // instead of staring at a generic "unavailable" string. Three
+        // common modes here:
+        //   - TypeError ("NetworkError when attempting to fetch …") →
+        //     the request never reached the server, usually because
+        //     the dev server died/restarted mid-call.
+        //   - Error("ANTHROPIC_API_KEY is not configured") (503) →
+        //     the API key isn't set on the backend.
+        //   - any other Error → an HTTP error from the chat route,
+        //     surfaced verbatim via api.ts's request() wrapper.
+        const isNetwork = err instanceof TypeError;
+        const raw = err instanceof Error ? err.message : String(err);
+        const message = isNetwork
+          ? "Couldn't reach the server. Is the dev process still running? Check the terminal."
+          : raw.includes('ANTHROPIC_API_KEY')
+            ? 'The backend has no ANTHROPIC_API_KEY set. Add it to .env and restart the server.'
+            : `AI request failed — ${raw}`;
         setAiMessages([
           ...nextHistory,
-          { role: 'assistant', content: `Sorry — the AI is unavailable right now (${err instanceof Error ? err.message : String(err)}).` },
+          { role: 'assistant', content: message },
         ]);
       } finally {
         setAiLoading(false);
