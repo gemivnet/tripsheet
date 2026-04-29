@@ -32,9 +32,7 @@ export function participantsRouter(db: DB): Router {
   router.get('/trips/:tripId', (req, res) => {
     const tripId = Number(req.params.tripId);
     const rows = db
-      .prepare<[number], ParticipantRow>(
-        'SELECT * FROM participants WHERE trip_id = ? ORDER BY id',
-      )
+      .prepare<[number], ParticipantRow>('SELECT * FROM participants WHERE trip_id = ? ORDER BY id')
       .all(tripId);
     res.json({ participants: rows });
   });

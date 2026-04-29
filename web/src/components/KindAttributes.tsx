@@ -15,7 +15,11 @@ let kindsCache: KindDef[] | null = null;
  *    parent's form-state holds the values until the user clicks "Add."
  */
 export type KindAttrsMode =
-  | { mode: 'edit'; itemId: number; updateItem: (id: number, patch: { attributes?: Record<string, unknown> }) => Promise<unknown> }
+  | {
+      mode: 'edit';
+      itemId: number;
+      updateItem: (id: number, patch: { attributes?: Record<string, unknown> }) => Promise<unknown>;
+    }
   | { mode: 'add'; onChange: (attrs: Record<string, unknown>) => void };
 
 export function KindAttributes({
@@ -32,17 +36,25 @@ export function KindAttributes({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Re-sync local state when the parent swaps to a different item.
-  useEffect(() => { setAttrs(initialAttrs); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [JSON.stringify(initialAttrs)]);
+  useEffect(() => {
+    setAttrs(initialAttrs); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [JSON.stringify(initialAttrs)]);
   useEffect(() => {
     if (kindsCache) return;
-    void api.listItemKinds().then((r) => { kindsCache = r.kinds; setKinds(r.kinds); });
+    void api.listItemKinds().then((r) => {
+      kindsCache = r.kinds;
+      setKinds(r.kinds);
+    });
   }, []);
 
   const def = kinds?.find((k) => k.kind === kind);
   if (!def || def.fields.length === 0) return null;
 
   const commit = (newAttrs: Record<string, unknown>): void => {
-    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     if (control.mode === 'edit') {
       void control.updateItem(control.itemId, { attributes: newAttrs });
     } else {
@@ -65,19 +77,34 @@ export function KindAttributes({
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ ...labelStyle, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+      <div
+        style={{ ...labelStyle, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}
+      >
         <span>{def.label} details</span>
         {def.hint && (
-          <span style={{ fontWeight: 400, color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>
+          <span
+            style={{
+              fontWeight: 400,
+              color: 'var(--text-muted)',
+              textTransform: 'none',
+              letterSpacing: 0,
+            }}
+          >
             {def.hint}
           </span>
         )}
       </div>
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
-        padding: 10, border: '1.5px solid var(--border)', borderRadius: 8,
-        background: 'oklch(98% 0.01 75)',
-      }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 8,
+          padding: 10,
+          border: '1.5px solid var(--border)',
+          borderRadius: 8,
+          background: 'oklch(98% 0.01 75)',
+        }}
+      >
         {def.fields.map((field) => (
           <FieldInput
             key={field.name}
@@ -93,7 +120,10 @@ export function KindAttributes({
 }
 
 function FieldInput({
-  field, value, onChange, onFlush,
+  field,
+  value,
+  onChange,
+  onFlush,
 }: {
   field: KindFieldDef;
   value: unknown;
@@ -108,21 +138,30 @@ function FieldInput({
         <label style={subLabel}>{field.label}</label>
         <select
           value={v}
-          onChange={(e) => { onChange(e.target.value || undefined); }}
+          onChange={(e) => {
+            onChange(e.target.value || undefined);
+          }}
           style={inputStyle}
         >
           <option value="">—</option>
-          {field.options.map((o) => <option key={o} value={o}>{o}</option>)}
+          {field.options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
         </select>
       </div>
     );
   }
 
   const inputType =
-    field.type === 'time' ? 'time'
-    : field.type === 'date' ? 'date'
-    : field.type === 'number' ? 'number'
-    : 'text';
+    field.type === 'time'
+      ? 'time'
+      : field.type === 'date'
+        ? 'date'
+        : field.type === 'number'
+          ? 'number'
+          : 'text';
 
   const transform = (raw: string): unknown => {
     if (raw === '') return undefined;
@@ -135,7 +174,13 @@ function FieldInput({
   };
 
   return (
-    <div style={field.name === 'address' || field.name === 'venue_name' || field.name === 'property_name' ? gridSpan2 : undefined}>
+    <div
+      style={
+        field.name === 'address' || field.name === 'venue_name' || field.name === 'property_name'
+          ? gridSpan2
+          : undefined
+      }
+    >
       <label style={subLabel}>{field.label}</label>
       <input
         type={inputType}
@@ -151,12 +196,20 @@ function FieldInput({
 }
 
 const subLabel: React.CSSProperties = {
-  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-  color: 'var(--text-muted)', marginBottom: 2, display: 'block',
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  marginBottom: 2,
+  display: 'block',
 };
 const gridSpan2: React.CSSProperties = { gridColumn: 'span 2' };
 
 export function parseAttrs(json: string): Record<string, unknown> {
-  try { return JSON.parse(json) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }

@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, type ChatMessage, type Item, type Participant, type ReferenceDoc, type Suggestion, type Trip, type User } from '../api.js';
+import {
+  api,
+  type ChatMessage,
+  type Item,
+  type Participant,
+  type ReferenceDoc,
+  type Suggestion,
+  type Trip,
+  type User,
+} from '../api.js';
 import { ParticipantRibbon } from '../components/ParticipantRibbon.js';
 import { Timeline } from '../components/Timeline.js';
 import { RightPane, UploadDrawer } from '../components/RightPane.js';
@@ -8,7 +17,10 @@ import type { EditorState, RightTab } from '../components/editor-state.js';
 import { useToast } from '../components/Toast.js';
 
 export function TripEditorPage({
-  tripIdOrSlug, user, onBack, onLogout,
+  tripIdOrSlug,
+  user,
+  onBack,
+  onLogout,
 }: {
   /** Either a numeric trip id (when the user navigated from the trips list)
    *  or a URL-safe slug (when the page was loaded via /t/:slug). The
@@ -53,35 +65,38 @@ export function TripEditorPage({
       setItems(r.items);
       setParticipants(r.participants);
       // Now we have the numeric id; kick off the supporting fetches.
-      void api.listDocs({ tripId: r.trip.id }).then((d) => { if (!cancelled) setDocs(d.docs); });
-      void api.listSuggestions(r.trip.id).then((s) => { if (!cancelled) setAiSuggestions(s.suggestions); });
+      void api.listDocs({ tripId: r.trip.id }).then((d) => {
+        if (!cancelled) setDocs(d.docs);
+      });
+      void api.listSuggestions(r.trip.id).then((s) => {
+        if (!cancelled) setAiSuggestions(s.suggestions);
+      });
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [tripIdOrSlug]);
 
   const refreshParticipants = useCallback(async (): Promise<void> => {
     if (!tripId) return;
-const r = await api.listParticipants(tripId);
+    const r = await api.listParticipants(tripId);
     setParticipants(r.participants);
   }, [tripId]);
 
-  const setItemParticipants = useCallback(
-    async (itemId: number, ids: number[]): Promise<void> => {
-      await api.setItemParticipants(itemId, ids);
-      setItems((prev) => prev.map((it) => it.id === itemId ? { ...it, participant_ids: ids } : it));
-    },
-    [],
-  );
+  const setItemParticipants = useCallback(async (itemId: number, ids: number[]): Promise<void> => {
+    await api.setItemParticipants(itemId, ids);
+    setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, participant_ids: ids } : it)));
+  }, []);
 
   const refreshDocs = useCallback(async (): Promise<void> => {
     if (!tripId) return;
-const r = await api.listDocs({ tripId });
+    const r = await api.listDocs({ tripId });
     setDocs(r.docs);
   }, [tripId]);
 
   const reloadTrip = useCallback(async (): Promise<void> => {
     if (!tripId) return;
-const r = await api.getTrip(tripId);
+    const r = await api.getTrip(tripId);
     setTrip(r.trip);
     setItems(r.items);
     setParticipants(r.participants);
@@ -89,7 +104,7 @@ const r = await api.getTrip(tripId);
 
   const refreshSuggestions = useCallback(async (): Promise<void> => {
     if (!tripId) return;
-const r = await api.listSuggestions(tripId);
+    const r = await api.listSuggestions(tripId);
     setAiSuggestions((prev) => {
       const byId = new Map<number, Suggestion>(prev.map((s) => [s.id, s]));
       for (const s of r.suggestions) byId.set(s.id, s);
@@ -108,10 +123,7 @@ const r = await api.listSuggestions(tripId);
     return () => clearInterval(t);
   }, [docs, refreshDocs, refreshSuggestions]);
 
-  const days = useMemo(
-    () => (trip ? buildDays(trip, items) : []),
-    [trip, items],
-  );
+  const days = useMemo(() => (trip ? buildDays(trip, items) : []), [trip, items]);
 
   const selectItem = useCallback((id: number | null): void => {
     setSelectedItemId(id);
@@ -134,7 +146,9 @@ const r = await api.listSuggestions(tripId);
   const closeAdd = useCallback((): void => setAddForDate(null), []);
 
   const createItem = useCallback(
-    async (patch: Partial<Item> & { day_date: string; title: string; kind: Item['kind'] }): Promise<Item | null> => {
+    async (
+      patch: Partial<Item> & { day_date: string; title: string; kind: Item['kind'] },
+    ): Promise<Item | null> => {
       try {
         const { item } = await api.createItem(tripId, patch);
         setItems((prev) => [...prev, { ...item, created_by_name: user.display_name }]);
@@ -149,23 +163,32 @@ const r = await api.listSuggestions(tripId);
   );
 
   const updateItem = useCallback(
-    async (id: number, patch: Partial<Item> & { attributes?: Record<string, unknown> }): Promise<void> => {
+    async (
+      id: number,
+      patch: Partial<Item> & { attributes?: Record<string, unknown> },
+    ): Promise<void> => {
       // Optimistic update. If the patch includes structured attributes,
       // also serialise into attributes_json so any consumer reading the
       // stringified form (smartDisplay, findActiveLodging, …) sees the
       // new values immediately instead of waiting on the API roundtrip.
-      setItems((prev) => prev.map((it) => {
-        if (it.id !== id) return it;
-        const next = { ...it, ...patch } as Item & { attributes?: Record<string, unknown> };
-        if (patch.attributes !== undefined) {
-          next.attributes_json = JSON.stringify(patch.attributes);
-          delete next.attributes;
-        }
-        return next;
-      }));
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.id !== id) return it;
+          const next = { ...it, ...patch } as Item & { attributes?: Record<string, unknown> };
+          if (patch.attributes !== undefined) {
+            next.attributes_json = JSON.stringify(patch.attributes);
+            delete next.attributes;
+          }
+          return next;
+        }),
+      );
       try {
         const { item } = await api.updateItem(tripId, id, patch);
-        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...item, created_by_name: it.created_by_name } : it)));
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === id ? { ...it, ...item, created_by_name: it.created_by_name } : it,
+          ),
+        );
         toast.success('Saved');
       } catch {
         toast.error('Save failed — changes reverted.');
@@ -228,7 +251,8 @@ const r = await api.listSuggestions(tripId);
           void api.updateItem(tripId, it.id, patch);
         });
         return prev.map((it) => {
-          if (it.id === itemId) return { ...it, day_date: toDate, sort_order: sortMap.get(it.id) ?? 0 };
+          if (it.id === itemId)
+            return { ...it, day_date: toDate, sort_order: sortMap.get(it.id) ?? 0 };
           if (sortMap.has(it.id)) return { ...it, sort_order: sortMap.get(it.id)! };
           return it;
         });
@@ -314,7 +338,9 @@ const r = await api.listSuggestions(tripId);
     try {
       const r = await api.listComments(itemId);
       setCommentCounts((p) => ({ ...p, [itemId]: r.comments.length }));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const sendAiMessage = useCallback(
@@ -345,10 +371,7 @@ const r = await api.listSuggestions(tripId);
           : raw.includes('ANTHROPIC_API_KEY')
             ? 'The backend has no ANTHROPIC_API_KEY set. Add it to .env and restart the server.'
             : `AI request failed — ${raw}`;
-        setAiMessages([
-          ...nextHistory,
-          { role: 'assistant', content: message },
-        ]);
+        setAiMessages([...nextHistory, { role: 'assistant', content: message }]);
       } finally {
         setAiLoading(false);
       }
@@ -369,7 +392,10 @@ const r = await api.listSuggestions(tripId);
       }
       if (r.item) {
         const returned = r.item;
-        const enriched = { ...returned, created_by_name: returned.created_by_name ?? user.display_name };
+        const enriched = {
+          ...returned,
+          created_by_name: returned.created_by_name ?? user.display_name,
+        };
         setItems((prev) => {
           const exists = prev.some((it) => it.id === returned.id);
           if (exists) {
@@ -391,7 +417,10 @@ const r = await api.listSuggestions(tripId);
   }, []);
 
   const patchSuggestion = useCallback(
-    async (id: number, patch: { payload?: Record<string, unknown>; rationale?: string }): Promise<void> => {
+    async (
+      id: number,
+      patch: { payload?: Record<string, unknown>; rationale?: string },
+    ): Promise<void> => {
       const r = await api.patchSuggestion(id, patch);
       setAiSuggestions((prev) => prev.map((x) => (x.id === id ? r.suggestion : x)));
     },
@@ -400,7 +429,16 @@ const r = await api.listSuggestions(tripId);
 
   const state: EditorState = {
     user,
-    trip: trip ?? { id: tripId, name: '…', start_date: '', end_date: '', destination: null, goals: null, notes: null, default_tz: null },
+    trip: trip ?? {
+      id: tripId,
+      name: '…',
+      start_date: '',
+      end_date: '',
+      destination: null,
+      goals: null,
+      notes: null,
+      default_tz: null,
+    },
     items,
     days,
     docs,
@@ -449,36 +487,73 @@ const r = await api.listSuggestions(tripId);
   const confirmed = items.filter((it) => !!it.confirmation).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)' }}>
-      <header style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        padding: '10px 22px', borderBottom: '1px solid var(--border)',
-        background: 'var(--surface)', flexShrink: 0,
-      }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)' }}
+    >
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          padding: '10px 22px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--surface)',
+          flexShrink: 0,
+        }}
+      >
         <button
           onClick={onBack}
           title="All trips"
           style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-muted)', padding: 4, display: 'flex', alignItems: 'center',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'var(--text-muted)',
+            padding: 4,
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8, background: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: '#fff',
-            letterSpacing: '-0.04em',
-          }}>t</div>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600,
-            color: 'var(--text)', letterSpacing: '-0.03em',
-          }}>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              background: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-display)',
+              fontSize: 17,
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '-0.04em',
+            }}
+          >
+            t
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 19,
+              fontWeight: 600,
+              color: 'var(--text)',
+              letterSpacing: '-0.03em',
+            }}
+          >
             Tripsheet
           </div>
         </div>
@@ -486,11 +561,18 @@ const r = await api.listSuggestions(tripId);
         <div style={{ height: 22, width: 1, background: 'var(--border)' }} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600,
-            color: 'var(--text)', letterSpacing: '-0.02em',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 17,
+              fontWeight: 600,
+              color: 'var(--text)',
+              letterSpacing: '-0.02em',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {trip.name}
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>
@@ -515,13 +597,27 @@ const r = await api.listSuggestions(tripId);
             onClick={() => setImportOpen(true)}
             title="Parse a PDF (confirmation, external itinerary, etc.) into swipeable suggestions"
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 8,
-              border: '1.5px solid var(--accent)', background: 'var(--accent)',
-              color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 14px',
+              borderRadius: 8,
+              border: '1.5px solid var(--accent)',
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: 'pointer',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
             </svg>
             Import PDF
@@ -531,8 +627,12 @@ const r = await api.listSuggestions(tripId);
             onClick={onLogout}
             title="Log out"
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', fontSize: 12, padding: '6px 10px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              fontSize: 12,
+              padding: '6px 10px',
               borderRadius: 6,
             }}
           >
@@ -567,14 +667,31 @@ const r = await api.listSuggestions(tripId);
 
 function StatPill({ label, value }: { label: string; value: number | string }): JSX.Element {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: '4px 10px', borderRadius: 14,
-      background: 'var(--bg)', border: '1px solid var(--border)',
-      fontSize: 11.5,
-    }}>
-      <span style={{ fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
-      <span style={{ color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: 10 }}>{label}</span>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '4px 10px',
+        borderRadius: 14,
+        background: 'var(--bg)',
+        border: '1px solid var(--border)',
+        fontSize: 11.5,
+      }}
+    >
+      <span style={{ fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </span>
+      <span
+        style={{
+          color: 'var(--text-muted)',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          fontSize: 10,
+        }}
+      >
+        {label}
+      </span>
     </div>
   );
 }

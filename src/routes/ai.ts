@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import type { DB } from '../db/index.js';
 import type { Config } from '../config.js';
-import type { ReferenceDocRow } from '../types.js';
+import type { ItemRow, ReferenceDocRow } from '../types.js';
 import { requireAuth } from '../auth/middleware.js';
 import { hasAnthropicKey } from '../ai/client.js';
 import { runSuggest } from '../ai/suggest.js';
 import { runChat, parseChatRequest } from '../ai/chat.js';
 import { queueParse } from '../ai/parsePdf.js';
 import { deriveTimezone } from '../ai/deriveTz.js';
-import type { ItemRow } from '../types.js';
 
 export function aiRouter(db: DB, config: Config, uploadDir: string): Router {
   const router = Router();
@@ -58,9 +57,7 @@ export function aiRouter(db: DB, config: Config, uploadDir: string): Router {
       return;
     }
     const id = Number(req.params.id);
-    const item = db
-      .prepare<[number], ItemRow>('SELECT * FROM items WHERE id = ?')
-      .get(id);
+    const item = db.prepare<[number], ItemRow>('SELECT * FROM items WHERE id = ?').get(id);
     if (!item) {
       res.status(404).json({ error: 'Item not found' });
       return;

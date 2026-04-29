@@ -10,9 +10,7 @@ import { generateUniqueTripSlug } from './slug.js';
  * get one. Idempotent.
  */
 export function backfillTripSlugs(db: DB): { updated: number } {
-  const rows = db
-    .prepare<[], { id: number }>(`SELECT id FROM trips WHERE slug IS NULL`)
-    .all();
+  const rows = db.prepare<[], { id: number }>(`SELECT id FROM trips WHERE slug IS NULL`).all();
   if (rows.length === 0) return { updated: 0 };
   const update = db.prepare('UPDATE trips SET slug = ? WHERE id = ?');
   const tx = db.transaction(() => {
@@ -56,12 +54,14 @@ interface ItemRow {
  */
 export function backfillItemDerivations(db: DB): { updated: number; scanned: number } {
   const items = db
-    .prepare<[], ItemRow>(`
+    .prepare<[], ItemRow>(
+      `
       SELECT id, kind, title, day_date, start_time, end_time, location,
              hours, cost, tz, end_tz, confirmation, attributes_json
       FROM items
       WHERE kind NOT IN ('option', 'note')
-    `)
+    `,
+    )
     .all();
 
   const updateStmt = db.prepare(`
@@ -84,9 +84,12 @@ export function backfillItemDerivations(db: DB): { updated: number; scanned: num
   let updated = 0;
   const tx = db.transaction(() => {
     for (const item of items) {
-      let attrs: Record<string, unknown> = {};
-      try { attrs = JSON.parse(item.attributes_json) as Record<string, unknown>; }
-      catch { continue; }
+      let attrs: Record<string, unknown>;
+      try {
+        attrs = JSON.parse(item.attributes_json) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
 
       const def = defForKind(item.kind as ItemKind);
       if (!def.derive && !def.normalizeAttrs) continue;

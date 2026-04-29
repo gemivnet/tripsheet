@@ -17,22 +17,40 @@ export function Timeline({ state }: { state: EditorState }): JSX.Element {
   }, [scrollTargetId]);
 
   return (
-    <div ref={containerRef} style={{
-      height: '100%', overflowY: 'auto', padding: '16px 20px 80px',
-      boxSizing: 'border-box', position: 'relative',
-    }}>
-      {days.map((d, i) => <DaySection key={d.date} day={d} dayIndex={i} state={state} />)}
+    <div
+      ref={containerRef}
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        padding: '16px 20px 80px',
+        boxSizing: 'border-box',
+        position: 'relative',
+      }}
+    >
+      {days.map((d, i) => (
+        <DaySection key={d.date} day={d} dayIndex={i} state={state} />
+      ))}
       <div style={{ textAlign: 'center', paddingTop: 4 }}>
         <button
           onClick={addDay}
           style={{
-            padding: '8px 20px', borderRadius: 16,
-            border: '2px dashed var(--border)', background: 'transparent',
-            color: 'var(--text-muted)', fontSize: 12.5, cursor: 'pointer',
+            padding: '8px 20px',
+            borderRadius: 16,
+            border: '2px dashed var(--border)',
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            fontSize: 12.5,
+            cursor: 'pointer',
             transition: 'all 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent)';
+            e.currentTarget.style.color = 'var(--accent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)';
+            e.currentTarget.style.color = 'var(--text-muted)';
+          }}
         >
           + Add Day
         </button>
@@ -43,13 +61,20 @@ export function Timeline({ state }: { state: EditorState }): JSX.Element {
 }
 
 function DaySection({
-  day, dayIndex, state,
-}: { day: Day; dayIndex: number; state: EditorState }): JSX.Element {
+  day,
+  dayIndex,
+  state,
+}: {
+  day: Day;
+  dayIndex: number;
+  state: EditorState;
+}): JSX.Element {
   const { openAdd, setRightTab, reorderItemsInDay, moveItemToDay, deleteDay } = state;
   const toast = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dragState, setDragState] = useState<{ draggingId: number | null; overId: number | null }>({
-    draggingId: null, overId: null,
+    draggingId: null,
+    overId: null,
   });
 
   const handleDragStart = (itemId: number) => (e: React.DragEvent) => {
@@ -74,7 +99,7 @@ function DaySection({
       const fromIdx = realItems.findIndex((it) => it.id === itemId);
       if (fromIdx !== -1 && fromIdx !== toIndex) {
         if (wouldBreakOrder(realItems, fromIdx, toIndex)) {
-          toast.error('Can\'t reorder — that would put a timed item out of chronological order.');
+          toast.error("Can't reorder — that would put a timed item out of chronological order.");
           return;
         }
         reorderItemsInDay(day.date, fromIdx, toIndex);
@@ -89,28 +114,87 @@ function DaySection({
   return (
     <div style={{ marginBottom: 28 }} data-day-date={day.date}>
       {/* Sticky day header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)',
-        position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 10, paddingTop: 6,
-      }}>
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          width: 44, height: 44, background: 'var(--accent)', borderRadius: 10,
-          justifyContent: 'center', flexShrink: 0,
-        }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{dateObj.getDate()}</span>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{dateObj.toLocaleDateString('en-US', { month: 'short' })}</span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 12,
+          paddingBottom: 10,
+          borderBottom: '1px solid var(--border)',
+          position: 'sticky',
+          top: 0,
+          background: 'var(--bg)',
+          zIndex: 10,
+          paddingTop: 6,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: 44,
+            height: 44,
+            background: 'var(--accent)',
+            borderRadius: 10,
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#fff',
+              lineHeight: 1,
+            }}
+          >
+            {dateObj.getDate()}
+          </span>
+          <span
+            style={{
+              fontSize: 9,
+              color: 'rgba(255,255,255,0.75)',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {dateObj.toLocaleDateString('en-US', { month: 'short' })}
+          </span>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 17,
+              fontWeight: 600,
+              color: 'var(--text)',
+              letterSpacing: '-0.02em',
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 8,
+            }}
+          >
             {dateObj.toLocaleDateString('en-US', { weekday: 'long' })}
             {day.dominant_tz && (
-              <span title={day.dominant_tz} style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
-                padding: '2px 7px', borderRadius: 10, background: 'oklch(95% 0.04 220)',
-                color: 'oklch(40% 0.1 220)',
-              }}>{shortTz(day.dominant_tz)}</span>
+              <span
+                title={day.dominant_tz}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  padding: '2px 7px',
+                  borderRadius: 10,
+                  background: 'oklch(95% 0.04 220)',
+                  color: 'oklch(40% 0.1 220)',
+                }}
+              >
+                {shortTz(day.dominant_tz)}
+              </span>
             )}
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
@@ -121,15 +205,29 @@ function DaySection({
           </div>
         </div>
         <button
-          onClick={() => { openAdd(day.date); setRightTab('event'); }}
-          style={{
-            padding: '5px 12px', borderRadius: 16,
-            border: '1.5px solid var(--border)', background: 'transparent',
-            fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer',
-            fontWeight: 500, transition: 'all 0.15s',
+          onClick={() => {
+            openAdd(day.date);
+            setRightTab('event');
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          style={{
+            padding: '5px 12px',
+            borderRadius: 16,
+            border: '1.5px solid var(--border)',
+            background: 'transparent',
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            fontWeight: 500,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent)';
+            e.currentTarget.style.color = 'var(--accent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)';
+            e.currentTarget.style.color = 'var(--text-muted)';
+          }}
         >
           + Add
         </button>
@@ -137,11 +235,17 @@ function DaySection({
           onClick={() => setConfirmDelete(true)}
           title="Delete this day"
           style={{
-            padding: '5px 9px', borderRadius: 16,
-            border: '1.5px solid var(--border)', background: 'transparent',
-            fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer',
+            padding: '5px 9px',
+            borderRadius: 16,
+            border: '1.5px solid var(--border)',
+            background: 'transparent',
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
           }}
-        >×</button>
+        >
+          ×
+        </button>
       </div>
       {confirmDelete && (
         <DeleteDayPrompt
@@ -164,127 +268,183 @@ function DaySection({
           show "In transit — X continues through this day" even when an
           unrelated check-in marker happens to sit on it.
         */}
-        {day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length === 0 && day.transit_over ? (
+        {day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length === 0 &&
+        day.transit_over ? (
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDrop(e, 0)}
             style={{
-              padding: '16px 18px', borderRadius: 10,
+              padding: '16px 18px',
+              borderRadius: 10,
               background: `oklch(96% 0.04 ${KIND_META.transit.hue})`,
               border: `1.5px dashed oklch(72% 0.10 ${KIND_META.transit.hue})`,
               color: `oklch(38% 0.12 ${KIND_META.transit.hue})`,
-              fontSize: 13, display: 'flex', alignItems: 'center', gap: 10,
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
             }}
           >
             <span style={{ fontSize: 18 }}>✈</span>
-            <span><strong>In transit</strong> — {day.transit_over.title} continues through this day.</span>
+            <span>
+              <strong>In transit</strong> — {day.transit_over.title} continues through this day.
+            </span>
           </div>
-        ) : day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length === 0 && day.package_over ? (
+        ) : day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length === 0 &&
+          day.package_over ? (
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDrop(e, 0)}
             style={{
-              padding: '16px 18px', borderRadius: 10,
+              padding: '16px 18px',
+              borderRadius: 10,
               background: `oklch(96% 0.04 ${KIND_META.package.hue})`,
               border: `1.5px dashed oklch(72% 0.10 ${KIND_META.package.hue})`,
               color: `oklch(38% 0.12 ${KIND_META.package.hue})`,
-              fontSize: 13, display: 'flex', alignItems: 'center', gap: 10,
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
             }}
           >
             <span style={{ fontSize: 18 }}>{KIND_META.package.icon}</span>
-            <span><strong>{day.package_over.title}</strong> — continues through this day.</span>
+            <span>
+              <strong>{day.package_over.title}</strong> — continues through this day.
+            </span>
           </div>
         ) : day.items.length === 0 ? (
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDrop(e, 0)}
             style={{
-              padding: 16, border: '2px dashed var(--border)', borderRadius: 10,
-              textAlign: 'center', color: 'var(--text-muted)', fontSize: 12.5,
+              padding: 16,
+              border: '2px dashed var(--border)',
+              borderRadius: 10,
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontSize: 12.5,
             }}
           >
             Drop items here or add one
           </div>
-        ) : (() => {
-          // Group items into rows. Items whose participant sets don't
-          // overlap can go side-by-side in the same row.
-          const rows = groupIntoParallelRows(day.items);
-          return rows.map((row, rowIdx) => {
-            // For gap/anytime divider: compare against last item in prev row
-            const prevRowLastItem = rowIdx > 0 ? rows[rowIdx - 1][rows[rowIdx - 1].length - 1] : null;
-            const firstItem = row[0];
-            const showAnytimeDivider = !!prevRowLastItem && !!prevRowLastItem.start_time && !firstItem?.start_time;
-            // Online check-in markers aren't real schedule entries — skip
-            // gap math against them. Arrival shadows ARE real (the user
-            // has landed and is waiting), so layovers between an arrival
-            // and the next flight should still surface as "X between".
-            const eitherIsCheckInMarker = !!(prevRowLastItem?._checkInOpen || firstItem?._checkInOpen);
-            const gap = !eitherIsCheckInMarker && prevRowLastItem && firstItem?.start_time
-              && (prevRowLastItem.end_time || prevRowLastItem.start_time)
-              ? gapMinutes(prevRowLastItem, firstItem)
-              : null;
-            const isParallel = row.length > 1;
-            return (
-              <div key={row.map((it) => it.id).join('-')}>
-                {showAnytimeDivider && <AnytimeDivider />}
-                {gap != null && gap >= 30 && (
-                  <GapPill minutes={gap} label={`${prevRowLastItem!.title} → ${firstItem.title}`} />
-                )}
-                {isParallel ? (
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'stretch' }}>
-                    {row.map((item) => {
+        ) : (
+          (() => {
+            // Group items into rows. Items whose participant sets don't
+            // overlap can go side-by-side in the same row.
+            const rows = groupIntoParallelRows(day.items);
+            return rows.map((row, rowIdx) => {
+              // For gap/anytime divider: compare against last item in prev row
+              const prevRowLastItem =
+                rowIdx > 0 ? rows[rowIdx - 1][rows[rowIdx - 1].length - 1] : null;
+              const firstItem = row[0];
+              const showAnytimeDivider =
+                !!prevRowLastItem && !!prevRowLastItem.start_time && !firstItem?.start_time;
+              // Online check-in markers aren't real schedule entries — skip
+              // gap math against them. Arrival shadows ARE real (the user
+              // has landed and is waiting), so layovers between an arrival
+              // and the next flight should still surface as "X between".
+              const eitherIsCheckInMarker = !!(
+                prevRowLastItem?._checkInOpen || firstItem?._checkInOpen
+              );
+              const gap =
+                !eitherIsCheckInMarker &&
+                prevRowLastItem &&
+                firstItem?.start_time &&
+                (prevRowLastItem.end_time || prevRowLastItem.start_time)
+                  ? gapMinutes(prevRowLastItem, firstItem)
+                  : null;
+              const isParallel = row.length > 1;
+              return (
+                <div key={row.map((it) => it.id).join('-')}>
+                  {showAnytimeDivider && <AnytimeDivider />}
+                  {gap != null && gap >= 30 && (
+                    <GapPill
+                      minutes={gap}
+                      label={`${prevRowLastItem!.title} → ${firstItem.title}`}
+                    />
+                  )}
+                  {isParallel ? (
+                    <div
+                      style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'stretch' }}
+                    >
+                      {row.map((item) => {
+                        const idx = day.items.findIndex((it) => it.id === item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            style={{ flex: 1, minWidth: 0, position: 'relative' }}
+                            onDragOver={(e) => handleDragOver(e, item.id)}
+                            onDrop={(e) => handleDrop(e, idx)}
+                          >
+                            {dragState.overId === item.id && dragState.draggingId !== item.id && (
+                              <div
+                                style={{
+                                  height: 3,
+                                  background: 'var(--accent)',
+                                  borderRadius: 2,
+                                  marginBottom: 6,
+                                  opacity: 0.7,
+                                }}
+                              />
+                            )}
+                            <ItemCard
+                              item={item}
+                              dayTz={day.dominant_tz}
+                              state={state}
+                              isDragging={dragState.draggingId === item.id}
+                              dragHandlers={{
+                                onDragStart: handleDragStart(item.id),
+                                onDragEnd: handleDragEnd,
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    row.map((item) => {
                       const idx = day.items.findIndex((it) => it.id === item.id);
                       return (
                         <div
                           key={item.id}
-                          style={{ flex: 1, minWidth: 0, position: 'relative' }}
+                          style={{ position: 'relative', marginBottom: 8 }}
                           onDragOver={(e) => handleDragOver(e, item.id)}
                           onDrop={(e) => handleDrop(e, idx)}
                         >
                           {dragState.overId === item.id && dragState.draggingId !== item.id && (
-                            <div style={{ height: 3, background: 'var(--accent)', borderRadius: 2, marginBottom: 6, opacity: 0.7 }} />
+                            <div
+                              style={{
+                                height: 3,
+                                background: 'var(--accent)',
+                                borderRadius: 2,
+                                marginBottom: 6,
+                                opacity: 0.7,
+                              }}
+                            />
                           )}
                           <ItemCard
                             item={item}
                             dayTz={day.dominant_tz}
                             state={state}
                             isDragging={dragState.draggingId === item.id}
-                            dragHandlers={{ onDragStart: handleDragStart(item.id), onDragEnd: handleDragEnd }}
+                            dragHandlers={{
+                              onDragStart: handleDragStart(item.id),
+                              onDragEnd: handleDragEnd,
+                            }}
                           />
                         </div>
                       );
-                    })}
-                  </div>
-                ) : (
-                  row.map((item) => {
-                    const idx = day.items.findIndex((it) => it.id === item.id);
-                    return (
-                      <div
-                        key={item.id}
-                        style={{ position: 'relative', marginBottom: 8 }}
-                        onDragOver={(e) => handleDragOver(e, item.id)}
-                        onDrop={(e) => handleDrop(e, idx)}
-                      >
-                        {dragState.overId === item.id && dragState.draggingId !== item.id && (
-                          <div style={{ height: 3, background: 'var(--accent)', borderRadius: 2, marginBottom: 6, opacity: 0.7 }} />
-                        )}
-                        <ItemCard
-                          item={item}
-                          dayTz={day.dominant_tz}
-                          state={state}
-                          isDragging={dragState.draggingId === item.id}
-                          dragHandlers={{ onDragStart: handleDragStart(item.id), onDragEnd: handleDragEnd }}
-                        />
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            );
-          });
-        })()}
+                    })
+                  )}
+                </div>
+              );
+            });
+          })()
+        )}
       </div>
-      {day.lodging && <LodgingFooter lodging={day.lodging} onClick={() => state.selectItem(day.lodging!.id)} />}
+      {day.lodging && (
+        <LodgingFooter lodging={day.lodging} onClick={() => state.selectItem(day.lodging!.id)} />
+      )}
     </div>
   );
 }
@@ -298,42 +458,62 @@ function DaySection({
  */
 function LodgingFooter({ lodging, onClick }: { lodging: Item; onClick: () => void }): JSX.Element {
   let attrs: Record<string, unknown> = {};
-  try { attrs = JSON.parse(lodging.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
-  const property = (attrs.property_name as string | undefined)
-    ?? (attrs.operator as string | undefined)
-    ?? lodging.location
-    ?? lodging.title;
+  try {
+    attrs = JSON.parse(lodging.attributes_json) as Record<string, unknown>;
+  } catch {
+    /* ok */
+  }
+  const property =
+    (attrs.property_name as string | undefined) ??
+    (attrs.operator as string | undefined) ??
+    lodging.location ??
+    lodging.title;
   return (
     <div
       onClick={onClick}
       style={{
-        marginTop: 8, padding: '8px 14px', borderRadius: 8,
-        display: 'flex', alignItems: 'center', gap: 10,
-        cursor: 'pointer', fontSize: 12,
-        color: 'var(--text-muted)', background: 'oklch(98% 0.01 250)',
+        marginTop: 8,
+        padding: '8px 14px',
+        borderRadius: 8,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        cursor: 'pointer',
+        fontSize: 12,
+        color: 'var(--text-muted)',
+        background: 'oklch(98% 0.01 250)',
         border: '1px solid var(--border)',
         fontStyle: 'italic',
       }}
     >
       <span style={{ fontSize: 14, fontStyle: 'normal' }}>🌙</span>
-      <span><span style={{ fontWeight: 600, fontStyle: 'normal' }}>Tonight</span> · {property}</span>
+      <span>
+        <span style={{ fontWeight: 600, fontStyle: 'normal' }}>Tonight</span> · {property}
+      </span>
     </div>
   );
 }
 
 function DeleteDayPrompt({
-  day, onCancel, onConfirm,
+  day,
+  onCancel,
+  onConfirm,
 }: {
   day: Day;
   onCancel: () => void;
   onConfirm: (mode: 'shift' | 'leave') => void | Promise<void>;
 }): JSX.Element {
   return (
-    <div style={{
-      margin: '0 0 10px 0', background: 'oklch(98% 0.04 25)',
-      border: '1px solid oklch(86% 0.06 25)', borderLeft: '3px solid oklch(58% 0.16 25)',
-      borderRadius: 8, padding: '10px 12px',
-    }}>
+    <div
+      style={{
+        margin: '0 0 10px 0',
+        background: 'oklch(98% 0.04 25)',
+        border: '1px solid oklch(86% 0.06 25)',
+        borderLeft: '3px solid oklch(58% 0.16 25)',
+        borderRadius: 8,
+        padding: '10px 12px',
+      }}
+    >
       <div style={{ fontSize: 13, color: 'oklch(35% 0.12 25)', marginBottom: 8 }}>
         {(() => {
           const realCount = day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length;
@@ -344,26 +524,47 @@ function DeleteDayPrompt({
         <button
           onClick={() => void onConfirm('shift')}
           style={{
-            padding: '5px 10px', borderRadius: 6, border: 'none',
-            background: 'oklch(58% 0.16 25)', color: '#fff', fontSize: 12,
-            fontWeight: 600, cursor: 'pointer',
+            padding: '5px 10px',
+            borderRadius: 6,
+            border: 'none',
+            background: 'oklch(58% 0.16 25)',
+            color: '#fff',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
           }}
-        >Delete & shift later days back</button>
+        >
+          Delete & shift later days back
+        </button>
         <button
           onClick={() => void onConfirm('leave')}
           style={{
-            padding: '5px 10px', borderRadius: 6, border: '1.5px solid var(--border)',
-            background: 'transparent', fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer',
+            padding: '5px 10px',
+            borderRadius: 6,
+            border: '1.5px solid var(--border)',
+            background: 'transparent',
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
           }}
-        >Delete, leave gap</button>
+        >
+          Delete, leave gap
+        </button>
         <div style={{ flex: 1 }} />
         <button
           onClick={onCancel}
           style={{
-            padding: '5px 10px', borderRadius: 6, border: 'none',
-            background: 'transparent', fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer',
+            padding: '5px 10px',
+            borderRadius: 6,
+            border: 'none',
+            background: 'transparent',
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
           }}
-        >Cancel</button>
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
@@ -460,7 +661,9 @@ function dayOffset(item: Item): number {
       return Math.max(0, Math.round((arr - dep) / 86_400_000));
     }
     if (a.arrival_day_offset != null) return Math.max(0, a.arrival_day_offset);
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
   if (item.start_time && item.end_time && item.end_time < item.start_time) return 1;
   return 0;
 }
@@ -476,36 +679,47 @@ function dayOffset(item: Item): number {
  */
 function smartDisplay(item: Item): { primary: string; secondary: string | null } {
   let attrs: Record<string, unknown> = {};
-  try { attrs = JSON.parse(item.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
+  try {
+    attrs = JSON.parse(item.attributes_json) as Record<string, unknown>;
+  } catch {
+    /* ok */
+  }
   const get = (k: string): string | null => {
     const v = attrs[k];
     return v == null || v === '' ? null : String(v);
   };
 
   if (item.kind === 'transit') {
+    const mode = get('transit_mode') ?? 'flight';
     const airline = get('airline');
     const flight = get('flight_number');
-    const dep = get('departure_airport');
-    const arr = get('arrival_airport');
+    const dep = get('departure_airport') ?? get('departure_place');
+    const arr = get('arrival_airport') ?? get('arrival_place');
     const seat = get('seat');
     const cabin = get('cabin');
+    const operator = [airline, flight].filter(Boolean).join(' ').trim();
+    const route = dep && arr ? `${dep} → ${arr}` : null;
     if (item._arrivalShadow) {
-      // Arrival shadow: show the landing side of the flight.
-      const primary = `Arrives · ${[airline, flight].filter(Boolean).join(' ') || item.title}`;
+      const primary = `Arrives · ${operator || item.title}`;
       const tail = [arr ? `into ${arr}` : null, cabin].filter(Boolean).join(' · ');
       return { primary, secondary: tail || item.location };
     }
     if (item._checkInOpen) {
-      const flightLabel = [airline, flight].filter(Boolean).join(' ') || item.title;
-      const route = dep && arr ? `${dep} → ${arr}` : null;
       return {
-        primary: `Online check-in opens · ${flightLabel}`,
+        primary: `Online check-in opens · ${operator || item.title}`,
         secondary: route,
       };
     }
-    const primary = [airline, flight].filter(Boolean).join(' ') || item.title;
-    const route = dep && arr ? `${dep} → ${arr}` : null;
-    const tail = [route, cabin, seat ? `seat ${seat}` : null].filter(Boolean).join(' · ');
+    const primary = operator || item.title;
+    const modeWord = mode === 'train' ? 'Train' : mode === 'drive' ? 'Drive' : null;
+    const tail = [
+      modeWord && !operator ? modeWord : null,
+      route,
+      mode === 'flight' ? cabin : null,
+      seat ? `seat ${seat}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
     return { primary, secondary: tail || item.location };
   }
 
@@ -553,7 +767,9 @@ function smartDisplay(item: Item): { primary: string; secondary: string | null }
       endDate ? `through ${endDate}` : null,
       includesLodging ? '🛏 lodging' : null,
       includesMeals === 'yes' ? '🍽 all meals' : includesMeals === 'some' ? '🍽 some meals' : null,
-    ].filter(Boolean).join(' · ');
+    ]
+      .filter(Boolean)
+      .join(' · ');
     return { primary, secondary: tail || item.location };
   }
 
@@ -563,11 +779,9 @@ function smartDisplay(item: Item): { primary: string; secondary: string | null }
     const price = get('price');
     const dur = get('duration_min');
     const primary = venue ?? item.title;
-    const tail = [
-      ticket === 'yes' ? '🎟 ticket' : null,
-      price,
-      dur ? `${dur} min` : null,
-    ].filter(Boolean).join(' · ');
+    const tail = [ticket === 'yes' ? '🎟 ticket' : null, price, dur ? `${dur} min` : null]
+      .filter(Boolean)
+      .join(' · ');
     return { primary, secondary: tail || get('address') || item.location };
   }
 
@@ -602,7 +816,9 @@ function durationMinutes(item: Item): number | null {
     } else {
       extraDays = Math.max(0, a.arrival_day_offset ?? 0);
     }
-  } catch { /* keep 0 */ }
+  } catch {
+    /* keep 0 */
+  }
 
   // tz-aware: treat departure clock in `tz`, arrival clock in `end_tz`,
   // converting both to UTC instants. Required for any cross-zone flight
@@ -624,7 +840,7 @@ function durationMinutes(item: Item): number | null {
   // tz-less fallback: clock subtraction with wraparound.
   const [h1, m1] = item.start_time.split(':').map(Number);
   const [h2, m2] = item.end_time.split(':').map(Number);
-  let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+  let mins = h2 * 60 + m2 - (h1 * 60 + m1);
   if (mins < 0) mins += 24 * 60;
   const total = mins + extraDays * 24 * 60;
   return total < 0 ? null : total;
@@ -632,13 +848,25 @@ function durationMinutes(item: Item): number | null {
 
 function utcOffsetMinutes(date: Date, tz: string): number {
   const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour12: false,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: tz,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
   const parts = fmt.formatToParts(date);
   const get = (t: string): number => Number(parts.find((p) => p.type === t)?.value);
-  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  const asUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+    get('second'),
+  );
   return Math.round((asUtc - date.getTime()) / 60000);
 }
 
@@ -671,7 +899,7 @@ function flexLabel(item: Item): string | null {
 function minutesBetween(a: string, b: string): number {
   const [h1, m1] = a.split(':').map(Number);
   const [h2, m2] = b.split(':').map(Number);
-  return (h2 * 60 + m2) - (h1 * 60 + m1);
+  return h2 * 60 + m2 - (h1 * 60 + m1);
 }
 
 /**
@@ -684,9 +912,10 @@ function minutesBetween(a: string, b: string): number {
 function gapMinutes(prev: Item, next: Item): number {
   const prevEndTime = prev.end_time ?? prev.start_time!;
   const prevEndTz = (prev.end_time ? prev.end_tz : prev.tz) ?? prev.tz ?? null;
-  const prevEndDate = prev.end_time && prev.end_time < (prev.start_time ?? '')
-    ? addDaysIso(prev.day_date, 1)
-    : prev.day_date;
+  const prevEndDate =
+    prev.end_time && prev.end_time < (prev.start_time ?? '')
+      ? addDaysIso(prev.day_date, 1)
+      : prev.day_date;
   if (prevEndTz && next.tz) {
     const a = wallClockToUtc(prevEndDate, prevEndTime, prevEndTz);
     const b = wallClockToUtc(next.day_date, next.start_time!, next.tz);
@@ -696,16 +925,22 @@ function gapMinutes(prev: Item, next: Item): number {
 }
 
 function GapPill({ minutes, label }: { minutes: number; label: string }): JSX.Element {
-  const text = minutes >= 60
-    ? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ''}`
-    : `${minutes}m`;
+  const text =
+    minutes >= 60
+      ? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ''}`
+      : `${minutes}m`;
   return (
     <div
       title={label}
       style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '2px 0 6px 14px', color: 'var(--text-muted)', fontSize: 10.5,
-        fontWeight: 500, letterSpacing: '0.04em',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '2px 0 6px 14px',
+        color: 'var(--text-muted)',
+        fontSize: 10.5,
+        fontWeight: 500,
+        letterSpacing: '0.04em',
       }}
     >
       <div style={{ width: 1, height: 12, background: 'var(--border)' }} />
@@ -716,11 +951,19 @@ function GapPill({ minutes, label }: { minutes: number; label: string }): JSX.El
 
 function AnytimeDivider(): JSX.Element {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0 8px',
-      color: 'var(--text-muted)', fontSize: 10.5, fontWeight: 700,
-      letterSpacing: '0.08em', textTransform: 'uppercase',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        margin: '14px 0 8px',
+        color: 'var(--text-muted)',
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+      }}
+    >
       <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
       <span>Anytime</span>
       <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -736,7 +979,9 @@ function AnytimeDivider(): JSX.Element {
  * → fresh banner) so we don't accidentally hide new problems.
  */
 function WarningBanner({
-  warnings, dayDate, tripId,
+  warnings,
+  dayDate,
+  tripId,
 }: {
   warnings: string[];
   dayDate: string;
@@ -745,45 +990,75 @@ function WarningBanner({
   const fingerprint = warnings.join('|');
   const storageKey = `tripsheet:warn-dismiss:${tripId}:${dayDate}`;
   const [dismissed, setDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem(storageKey) === fingerprint; } catch { return false; }
+    try {
+      return localStorage.getItem(storageKey) === fingerprint;
+    } catch {
+      return false;
+    }
   });
   // If the warning set changes (e.g. a new issue surfaces), reset dismissal.
   useEffect(() => {
     try {
       setDismissed(localStorage.getItem(storageKey) === fingerprint);
-    } catch { setDismissed(false); }
+    } catch {
+      setDismissed(false);
+    }
   }, [storageKey, fingerprint]);
 
   if (warnings.length === 0 || dismissed) return null;
   return (
-    <div style={{
-      margin: '0 0 10px 0',
-      background: 'oklch(98% 0.04 72)',
-      border: '1px solid oklch(84% 0.08 68)',
-      borderLeft: '3px solid oklch(62% 0.13 62)',
-      borderRadius: 8, padding: '9px 12px 9px 14px',
-      display: 'flex', gap: 10, alignItems: 'flex-start',
-    }}>
+    <div
+      style={{
+        margin: '0 0 10px 0',
+        background: 'oklch(98% 0.04 72)',
+        border: '1px solid oklch(84% 0.08 68)',
+        borderLeft: '3px solid oklch(62% 0.13 62)',
+        borderRadius: 8,
+        padding: '9px 12px 9px 14px',
+        display: 'flex',
+        gap: 10,
+        alignItems: 'flex-start',
+      }}
+    >
       <div style={{ flex: 1 }}>
         {warnings.map((w, i) => (
           <div key={i} style={{ fontSize: 12, color: 'oklch(40% 0.1 62)', lineHeight: 1.5 }}>
-            {i === 0 ? '' : '· '}{w}
+            {i === 0 ? '' : '· '}
+            {w}
           </div>
         ))}
       </div>
       <button
         onClick={() => {
-          try { localStorage.setItem(storageKey, fingerprint); } catch { /* ok */ }
+          try {
+            localStorage.setItem(storageKey, fingerprint);
+          } catch {
+            /* ok */
+          }
           setDismissed(true);
         }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'oklch(65% 0.08 65)', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
-      >×</button>
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'oklch(65% 0.08 65)',
+          fontSize: 16,
+          lineHeight: 1,
+          padding: '0 2px',
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
 
 function ItemCard({
-  item, dayTz, state, isDragging, dragHandlers,
+  item,
+  dayTz,
+  state,
+  isDragging,
+  dragHandlers,
 }: {
   item: Item;
   dayTz: string | null;
@@ -799,20 +1074,27 @@ function ItemCard({
       <div
         onClick={() => state.selectItem(item._parentItemId ?? item.id)}
         style={{
-          borderRadius: 999, padding: '5px 12px',
+          borderRadius: 999,
+          padding: '5px 12px',
           background: 'oklch(96% 0.015 220)',
           border: '1px dashed oklch(72% 0.08 220)',
           color: 'oklch(38% 0.10 220)',
-          cursor: 'pointer', fontSize: 11.5,
-          display: 'flex', alignItems: 'center', gap: 8,
-          alignSelf: 'flex-start', maxWidth: '100%',
+          cursor: 'pointer',
+          fontSize: 11.5,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          alignSelf: 'flex-start',
+          maxWidth: '100%',
         }}
       >
         <span style={{ fontSize: 13 }}>🛫</span>
         <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
           {item.start_time}
         </span>
-        <span style={{ opacity: 0.85, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span
+          style={{ opacity: 0.85, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}
+        >
           {primary}
         </span>
       </div>
@@ -827,25 +1109,59 @@ function ItemCard({
       <div
         onClick={() => state.selectItem(item.id)}
         style={{
-          borderRadius: 10, padding: '8px 14px',
+          borderRadius: 10,
+          padding: '8px 14px',
           background: `oklch(97% 0.02 ${hue})`,
           border: `1.5px dashed oklch(68% 0.1 ${hue})`,
           cursor: 'pointer',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minWidth: 44, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              minWidth: 44,
+              textAlign: 'center',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
             {item.start_time ?? '—'}
             {item.tz && item.tz !== dayTz && (
-              <span style={{ display: 'block', fontSize: 9, color: 'oklch(40% 0.1 220)', fontWeight: 700 }}>{shortTz(item.tz)}</span>
+              <span
+                style={{
+                  display: 'block',
+                  fontSize: 9,
+                  color: 'oklch(40% 0.1 220)',
+                  fontWeight: 700,
+                }}
+              >
+                {shortTz(item.tz)}
+              </span>
             )}
           </span>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <TypeDot kind={item.kind} size={7} />
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: `oklch(40% 0.12 ${hue})`, letterSpacing: '-0.02em' }}>{primary}</span>
+              <span
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: `oklch(40% 0.12 ${hue})`,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {primary}
+              </span>
             </div>
-            {secondary && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, paddingLeft: 15 }}>{secondary}</div>}
+            {secondary && (
+              <div
+                style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, paddingLeft: 15 }}
+              >
+                {secondary}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -853,8 +1169,15 @@ function ItemCard({
   }
 
   const {
-    selectedItemId, selectItem, updateItem, deleteItem, duplicateItem,
-    duplicatingId, flyingItemId, commentCounts, participants,
+    selectedItemId,
+    selectItem,
+    updateItem,
+    deleteItem,
+    duplicateItem,
+    duplicatingId,
+    flyingItemId,
+    commentCounts,
+    participants,
   } = state;
   const isSelected = selectedItemId === item.id;
   const isFlying = flyingItemId === item.id;
@@ -882,57 +1205,110 @@ function ItemCard({
       style={{
         background: isSelected
           ? `oklch(99% 0.015 ${hue})`
-          : isDimTarget ? `oklch(99% 0.02 ${hue})` : 'var(--surface)',
+          : isDimTarget
+            ? `oklch(99% 0.02 ${hue})`
+            : 'var(--surface)',
         border: `1.5px solid ${isSelected ? `oklch(72% 0.1 ${hue})` : isDimTarget ? `oklch(68% 0.14 ${hue})` : 'var(--border)'}`,
         borderLeft: duration ? `4px solid oklch(70% 0.12 ${hue})` : undefined,
-        borderRadius: 10, padding: '11px 14px',
+        borderRadius: 10,
+        padding: '11px 14px',
         minHeight: 44 + heightBoost,
-        cursor: 'grab', userSelect: 'none',
+        cursor: 'grab',
+        userSelect: 'none',
         opacity: isDragging ? 0.3 : 1,
         transform: isFlying ? 'translateX(12px) scale(1.02)' : 'none',
         boxShadow: isDimTarget
           ? `0 0 0 3px oklch(72% 0.14 ${hue} / 0.3), 0 6px 24px oklch(20% 0.04 65 / 0.12)`
-          : isSelected ? `0 2px 12px oklch(60% 0.1 ${hue} / 0.1)` : '0 1px 3px oklch(20% 0.02 65 / 0.05)',
-        transition: 'all 0.18s ease', position: 'relative',
+          : isSelected
+            ? `0 2px 12px oklch(60% 0.1 ${hue} / 0.1)`
+            : '0 1px 3px oklch(20% 0.02 65 / 0.05)',
+        transition: 'all 0.18s ease',
+        position: 'relative',
         animation: isFlying ? 'fly-in 0.6s ease' : undefined,
-        display: 'flex', flexDirection: 'column',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {isDimTarget && (
-        <div style={{
-          position: 'absolute', top: -10, right: 10,
-          background: `oklch(58% 0.14 ${hue})`, color: '#fff',
-          fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-          textTransform: 'uppercase', padding: '2px 8px', borderRadius: 4,
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: -10,
+            right: 10,
+            background: `oklch(58% 0.14 ${hue})`,
+            color: '#fff',
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            padding: '2px 8px',
+            borderRadius: 4,
+          }}
+        >
           Move me
         </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-          flexShrink: 0, paddingTop: 2,
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 4,
+            flexShrink: 0,
+            paddingTop: 2,
+          }}
+        >
           <span
             title={[flexLabel(item), item.tz].filter(Boolean).join(' · ') || undefined}
             style={{
-              fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
-              letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap', textAlign: 'center',
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              letterSpacing: '-0.01em',
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+              textAlign: 'center',
             }}
           >
-            {flexPrefix(item)}{item.start_time ?? '—'}
+            {flexPrefix(item)}
+            {item.start_time ?? '—'}
             {item.tz && item.tz !== dayTz && (
-              <span style={{ display: 'block', fontSize: 9, color: 'oklch(40% 0.1 220)', fontWeight: 700 }}>
+              <span
+                style={{
+                  display: 'block',
+                  fontSize: 9,
+                  color: 'oklch(40% 0.1 220)',
+                  fontWeight: 700,
+                }}
+              >
                 {shortTz(item.tz)}
               </span>
             )}
             {item.end_time && item.end_time !== item.start_time && (
-              <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', opacity: 0.75 }}>
-                –{item.end_time}{(() => { const n = dayOffset(item); return n > 0 ? ` +${n}d` : ''; })()}
+              <span
+                style={{
+                  display: 'block',
+                  fontSize: 10,
+                  color: 'var(--text-muted)',
+                  opacity: 0.75,
+                }}
+              >
+                –{item.end_time}
+                {(() => {
+                  const n = dayOffset(item);
+                  return n > 0 ? ` +${n}d` : '';
+                })()}
                 {item.end_tz && item.end_tz !== item.tz && (
-                  <span style={{ display: 'block', fontSize: 9, color: 'oklch(40% 0.1 220)', fontWeight: 700 }}>
+                  <span
+                    style={{
+                      display: 'block',
+                      fontSize: 9,
+                      color: 'oklch(40% 0.1 220)',
+                      fontWeight: 700,
+                    }}
+                  >
                     {shortTz(item.end_tz)}
                   </span>
                 )}
@@ -948,18 +1324,37 @@ function ItemCard({
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <TypeDot kind={item.kind} size={7} />
-                  <span style={{
-                    fontSize: 14, fontWeight: 600, color: 'var(--text)',
-                    letterSpacing: '-0.02em', lineHeight: 1.3,
-                    flex: 1, minWidth: 0,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{primary}</span>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: 'var(--text)',
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1.3,
+                      flex: 1,
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {primary}
+                  </span>
                 </div>
                 {secondary && (
-                  <div style={{
-                    fontSize: 12, color: 'var(--text-muted)', marginTop: 3, paddingLeft: 15,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{secondary}</div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      marginTop: 3,
+                      paddingLeft: 15,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {secondary}
+                  </div>
                 )}
               </>
             );
@@ -974,8 +1369,23 @@ function ItemCard({
             />
           )}
           {commentCount > 0 && (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+              }}
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
               </svg>
               {commentCount}
@@ -990,7 +1400,14 @@ function ItemCard({
               title="Open the source PDF this item came from"
               style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center' }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
               </svg>
             </a>
@@ -1000,20 +1417,37 @@ function ItemCard({
       </div>
 
       {(duration != null || (item.participant_ids && item.participant_ids.length > 0)) && (
-        <div style={{
-          marginTop: 'auto', paddingTop: 6, paddingLeft: 56,
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
+        <div
+          style={{
+            marginTop: 'auto',
+            paddingTop: 6,
+            paddingLeft: 56,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
           {(duration != null || item.end_time) && (
-            <div style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: '0.05em',
-              color: `oklch(48% 0.12 ${hue})`, textTransform: 'uppercase',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                color: `oklch(48% 0.12 ${hue})`,
+                textTransform: 'uppercase',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
               {duration != null && <span>{formatDuration(duration)}</span>}
               {item.end_time && (
                 <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-                  {duration != null ? '· ' : ''}ends {item.end_time}{(() => { const n = dayOffset(item); return n > 0 ? ` (+${n}d)` : ''; })()}
+                  {duration != null ? '· ' : ''}ends {item.end_time}
+                  {(() => {
+                    const n = dayOffset(item);
+                    return n > 0 ? ` (+${n}d)` : '';
+                  })()}
                 </span>
               )}
             </div>
@@ -1023,62 +1457,135 @@ function ItemCard({
       )}
 
       {isSelected && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--border)',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 10,
+            paddingTop: 8,
+            borderTop: '1px solid var(--border)',
+          }}
+        >
           <TypePill kind={item.kind} small />
           <div style={{ flex: 1 }} />
           <button
-            onClick={(e) => { e.stopPropagation(); updateItem(item.id, { confirmation: confirmed ? null : 'confirmed' }); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              updateItem(item.id, { confirmation: confirmed ? null : 'confirmed' });
+            }}
             title={confirmed ? 'Mark unconfirmed' : 'Mark confirmed'}
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
               color: confirmed ? 'oklch(48% 0.12 160)' : 'var(--text-muted)',
-              fontSize: 11.5, padding: '3px 6px', borderRadius: 5,
+              fontSize: 11.5,
+              padding: '3px 6px',
+              borderRadius: 5,
               transition: 'background 0.1s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--bg)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'none';
+            }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill={confirmed ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill={confirmed ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {confirmed ? 'Confirmed' : 'Unconfirmed'}
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); duplicateItem(item.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              duplicateItem(item.id);
+            }}
             title="Duplicate"
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 5,
-              display: 'flex', alignItems: 'center', transition: 'background 0.1s',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              padding: '3px 6px',
+              borderRadius: 5,
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'background 0.1s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--bg)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'none';
+            }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <rect x="9" y="9" width="13" height="13" rx="2" />
               <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
             </svg>
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this item?')) deleteItem(item.id); }}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 5,
-              display: 'flex', alignItems: 'center', transition: 'background 0.1s',
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm('Delete this item?')) deleteItem(item.id);
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'oklch(97% 0.04 15)'; e.currentTarget.style.color = 'oklch(52% 0.18 15)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              padding: '3px 6px',
+              borderRadius: 5,
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'background 0.1s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'oklch(97% 0.04 15)';
+              e.currentTarget.style.color = 'oklch(52% 0.18 15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'none';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+            </svg>
           </button>
         </div>
       )}
 
       {menuPos && (
         <ItemContextMenu
-          x={menuPos.x} y={menuPos.y}
+          x={menuPos.x}
+          y={menuPos.y}
           onClose={() => setMenuPos(null)}
           onCopy={() => {
             void navigator.clipboard.writeText(itemAsText(item));
@@ -1096,8 +1603,12 @@ function ItemCard({
 
 /** Small colored name-initial dots for the subset of participants on this item. */
 function ParticipantDots({
-  item, participants,
-}: { item: Item; participants: Participant[] }): JSX.Element | null {
+  item,
+  participants,
+}: {
+  item: Item;
+  participants: Participant[];
+}): JSX.Element | null {
   const ids = item.participant_ids;
   if (!ids || ids.length === 0) return null;
   const attending = participants.filter((p) => ids.includes(p.id));
@@ -1106,19 +1617,33 @@ function ParticipantDots({
     <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
       {attending.map((p) => {
         const hue = p.color_hue ?? 200;
-        const initials = p.display_name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+        const initials = p.display_name
+          .split(/\s+/)
+          .map((w) => w[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase();
         return (
           <div
             key={p.id}
             title={p.display_name}
             style={{
-              width: 18, height: 18, borderRadius: '50%',
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
               background: `oklch(60% 0.14 ${hue})`,
-              color: '#fff', fontSize: 8, fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              letterSpacing: '-0.02em', flexShrink: 0,
+              color: '#fff',
+              fontSize: 8,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              letterSpacing: '-0.02em',
+              flexShrink: 0,
             }}
-          >{initials}</div>
+          >
+            {initials}
+          </div>
         );
       })}
     </div>
@@ -1126,9 +1651,14 @@ function ParticipantDots({
 }
 
 function ItemContextMenu({
-  x, y, onClose, onCopy, onDelete,
+  x,
+  y,
+  onClose,
+  onCopy,
+  onDelete,
 }: {
-  x: number; y: number;
+  x: number;
+  y: number;
   onClose: () => void;
   onCopy: () => void;
   onDelete: () => void;
@@ -1137,18 +1667,33 @@ function ItemContextMenu({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      onContextMenu={(e) => { e.preventDefault(); onClose(); }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
       style={{ position: 'fixed', inset: 0, zIndex: 500 }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div style={{
-        position: 'fixed', top: y, left: x, zIndex: 501,
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 8, padding: 4, minWidth: 160,
-        boxShadow: '0 8px 24px oklch(20% 0.04 65 / 0.18)',
-        fontSize: 13,
-      }}>
-        <button onClick={onCopy} style={menuBtn}>📋 Copy as text</button>
+      <div
+        style={{
+          position: 'fixed',
+          top: y,
+          left: x,
+          zIndex: 501,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 8,
+          padding: 4,
+          minWidth: 160,
+          boxShadow: '0 8px 24px oklch(20% 0.04 65 / 0.18)',
+          fontSize: 13,
+        }}
+      >
+        <button onClick={onCopy} style={menuBtn}>
+          📋 Copy as text
+        </button>
         <button
           onClick={confirmingDel ? onDelete : () => setConfirmingDel(true)}
           style={{
@@ -1167,14 +1712,18 @@ function ItemContextMenu({
 function itemAsText(item: Item): string {
   const lines: string[] = [];
   const time = item.start_time
-    ? (item.end_time && item.end_time !== item.start_time
-        ? `${item.start_time}–${item.end_time}`
-        : item.start_time)
+    ? item.end_time && item.end_time !== item.start_time
+      ? `${item.start_time}–${item.end_time}`
+      : item.start_time
     : '';
   lines.push(`${time ? time + ' · ' : ''}${item.title}`);
   if (item.location) lines.push(`  ${item.location}`);
   let attrs: Record<string, unknown> = {};
-  try { attrs = JSON.parse(item.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
+  try {
+    attrs = JSON.parse(item.attributes_json) as Record<string, unknown>;
+  } catch {
+    /* ok */
+  }
   for (const [k, v] of Object.entries(attrs)) {
     if (v == null || v === '') continue;
     lines.push(`  ${k}: ${String(v)}`);
@@ -1186,9 +1735,15 @@ function itemAsText(item: Item): string {
 }
 
 const menuBtn: React.CSSProperties = {
-  display: 'block', width: '100%', textAlign: 'left',
-  background: 'none', border: 'none', cursor: 'pointer',
-  padding: '7px 10px', borderRadius: 5, fontSize: 13,
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  padding: '7px 10px',
+  borderRadius: 5,
+  fontSize: 13,
   color: 'var(--text)',
 };
 
@@ -1197,29 +1752,74 @@ function DuplicateOverlay({ state }: { state: EditorState }): JSX.Element | null
   if (!duplicatingId) return null;
   return (
     <>
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'oklch(15% 0.02 65 / 0.38)', zIndex: 20,
-        backdropFilter: 'blur(1px)', pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: 24, left: '50%',
-        transform: 'translateX(-50%)', zIndex: 30,
-        display: 'flex', alignItems: 'center', gap: 10,
-        background: 'var(--surface)', border: '1.5px solid var(--border)',
-        borderRadius: 24, padding: '10px 18px',
-        boxShadow: '0 8px 32px oklch(20% 0.04 65 / 0.18)', whiteSpace: 'nowrap',
-      }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'oklch(15% 0.02 65 / 0.38)',
+          zIndex: 20,
+          backdropFilter: 'blur(1px)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 30,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: 'var(--surface)',
+          border: '1.5px solid var(--border)',
+          borderRadius: 24,
+          padding: '10px 18px',
+          boxShadow: '0 8px 32px oklch(20% 0.04 65 / 0.18)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="2.5"
+        >
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
         <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Drag to reposition, then</span>
         <button
           onClick={confirmDuplicate}
-          style={{ padding: '6px 16px', borderRadius: 16, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >Confirm</button>
+          style={{
+            padding: '6px 16px',
+            borderRadius: 16,
+            border: 'none',
+            background: 'var(--accent)',
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Confirm
+        </button>
         <button
           onClick={cancelDuplicate}
-          style={{ padding: '6px 12px', borderRadius: 16, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}
-        >Cancel</button>
+          style={{
+            padding: '6px 12px',
+            borderRadius: 16,
+            border: '1.5px solid var(--border)',
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          Cancel
+        </button>
       </div>
     </>
   );

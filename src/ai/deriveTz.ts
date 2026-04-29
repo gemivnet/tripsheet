@@ -30,28 +30,24 @@ export async function deriveTimezone(location: string, kind: string): Promise<De
     ? `For this transit/flight, return the IANA time zones of the origin and destination. Location: "${location}". Reply ONLY as JSON: {"tz":"Origin/Tz","end_tz":"Destination/Tz"}. Use null if unsure.`
     : `Return the IANA time zone for this location: "${location}". Reply ONLY as JSON: {"tz":"Region/City"}. Use null if unsure or if the location is too vague.`;
 
-  const response = await callMessages<{ content?: Array<{ type: string; text?: string }> }>(
-    'deriveTz',
-    {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
-      messages: [{ role: 'user', content: ask }],
-    },
-  );
+  const response = await callMessages<{ content?: { type: string; text?: string }[] }>('deriveTz', {
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 200,
+    messages: [{ role: 'user', content: ask }],
+  });
   const text = (response.content ?? [])
     .filter((b) => b.type === 'text')
     .map((b) => b.text ?? '')
     .join('')
     .trim();
-  const match = text.match(/\{[\s\S]*\}/);
+  const match = /\{[\s\S]*\}/.exec(text);
   if (!match) return { tz: null, end_tz: null };
   try {
     const parsed = JSON.parse(match[0]) as { tz?: string | null; end_tz?: string | null };
     const result: DerivedTz = {
       tz: parsed.tz && /^[A-Za-z_]+\/[A-Za-z_/+-]+$/.test(parsed.tz) ? parsed.tz : null,
-      end_tz: parsed.end_tz && /^[A-Za-z_]+\/[A-Za-z_/+-]+$/.test(parsed.end_tz)
-        ? parsed.end_tz
-        : null,
+      end_tz:
+        parsed.end_tz && /^[A-Za-z_]+\/[A-Za-z_/+-]+$/.test(parsed.end_tz) ? parsed.end_tz : null,
     };
     cache.set(key, result.tz);
     return result;

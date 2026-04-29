@@ -8,20 +8,120 @@ import { checkinOpensAt } from '../airlineCheckin.js';
 // pill/dot pair stays harmonious with the terracotta accent. Label is what
 // the user sees on pills.
 export const KIND_META: Record<ItemKind, { label: string; hue: number; icon: string }> = {
-  meal:        { label: 'Meal',        hue: 15,  icon: '✦' },
-  reservation: { label: 'Reservation', hue: 30,  icon: '◉' },
-  checkin:     { label: 'Check-in',    hue: 45,  icon: '⌂' },
-  checkout:    { label: 'Check-out',   hue: 45,  icon: '⌂' },
-  activity:    { label: 'Activity',    hue: 160, icon: '◈' },
-  package:     { label: 'Package',     hue: 100, icon: '⛺' },
-  option:      { label: 'Option',      hue: 280, icon: '○' },
-  note:        { label: 'Note',        hue: 0,   icon: '✎' },
-  transit:     { label: 'Transit',     hue: 220, icon: '↗' },
+  meal: { label: 'Meal', hue: 15, icon: '✦' },
+  reservation: { label: 'Reservation', hue: 30, icon: '◉' },
+  checkin: { label: 'Check-in', hue: 45, icon: '⌂' },
+  checkout: { label: 'Check-out', hue: 45, icon: '⌂' },
+  activity: { label: 'Activity', hue: 160, icon: '◈' },
+  package: { label: 'Package', hue: 100, icon: '⛺' },
+  option: { label: 'Option', hue: 280, icon: '○' },
+  note: { label: 'Note', hue: 0, icon: '✎' },
+  transit: { label: 'Transit', hue: 220, icon: '↗' },
 };
 
 export const KIND_LIST: ItemKind[] = [
-  'meal', 'activity', 'reservation', 'package', 'checkin', 'checkout', 'transit', 'option', 'note',
+  'meal',
+  'activity',
+  'reservation',
+  'package',
+  'checkin',
+  'checkout',
+  'transit',
+  'option',
+  'note',
 ];
+
+/**
+ * UI-level "type" picks shown in the editor's Type chip row. Most map
+ * 1:1 to an ItemKind, but `transit` fans out into three picks
+ * (Flight / Train / Ground transit) that all save kind='transit' and
+ * pre-seed an `attributes.transit_mode` discriminator. The structured
+ * form still lets the user change the mode later.
+ */
+export interface TypePick {
+  id: string;
+  kind: ItemKind;
+  transit_mode?: 'flight' | 'train' | 'drive';
+  label: string;
+  hue: number;
+  icon: string;
+}
+
+export const TYPE_PICKS: TypePick[] = [
+  { id: 'meal', kind: 'meal', label: 'Meal', hue: KIND_META.meal.hue, icon: KIND_META.meal.icon },
+  {
+    id: 'activity',
+    kind: 'activity',
+    label: 'Activity',
+    hue: KIND_META.activity.hue,
+    icon: KIND_META.activity.icon,
+  },
+  {
+    id: 'reservation',
+    kind: 'reservation',
+    label: 'Reservation',
+    hue: KIND_META.reservation.hue,
+    icon: KIND_META.reservation.icon,
+  },
+  {
+    id: 'package',
+    kind: 'package',
+    label: 'Package',
+    hue: KIND_META.package.hue,
+    icon: KIND_META.package.icon,
+  },
+  {
+    id: 'checkin',
+    kind: 'checkin',
+    label: 'Check-in',
+    hue: KIND_META.checkin.hue,
+    icon: KIND_META.checkin.icon,
+  },
+  {
+    id: 'checkout',
+    kind: 'checkout',
+    label: 'Check-out',
+    hue: KIND_META.checkout.hue,
+    icon: KIND_META.checkout.icon,
+  },
+  { id: 'flight', kind: 'transit', transit_mode: 'flight', label: 'Flight', hue: 220, icon: '✈' },
+  { id: 'train', kind: 'transit', transit_mode: 'train', label: 'Train', hue: 200, icon: '🚆' },
+  {
+    id: 'drive',
+    kind: 'transit',
+    transit_mode: 'drive',
+    label: 'Ground transit',
+    hue: 240,
+    icon: '🚗',
+  },
+  {
+    id: 'option',
+    kind: 'option',
+    label: 'Option',
+    hue: KIND_META.option.hue,
+    icon: KIND_META.option.icon,
+  },
+  { id: 'note', kind: 'note', label: 'Note', hue: KIND_META.note.hue, icon: KIND_META.note.icon },
+];
+
+/** Resolve an item to the TypePick that matches it (by kind + transit_mode). */
+export function pickForItem(
+  kind: ItemKind,
+  attrs: Record<string, unknown> | null | undefined,
+): TypePick {
+  if (kind === 'transit') {
+    const mode =
+      attrs && typeof (attrs as { transit_mode?: unknown }).transit_mode === 'string'
+        ? (attrs as { transit_mode: string }).transit_mode
+        : 'flight';
+    const m = TYPE_PICKS.find((p) => p.kind === 'transit' && p.transit_mode === mode);
+    if (m) return m;
+  }
+  return (
+    TYPE_PICKS.find((p) => p.kind === kind && p.transit_mode === undefined) ??
+    TYPE_PICKS[TYPE_PICKS.length - 1]
+  );
+}
 
 // ─── Avatar (initials disc) ──────────────────────────────────────────────────
 
@@ -42,18 +142,30 @@ export function hueOf(key: string | number | null | undefined): number {
 }
 
 export function Avatar({
-  name, size = 28, userId,
-}: { name: string | null | undefined; size?: number; userId?: number | null }): JSX.Element {
+  name,
+  size = 28,
+  userId,
+}: {
+  name: string | null | undefined;
+  size?: number;
+  userId?: number | null;
+}): JSX.Element {
   const hue = hueOf(userId ?? name ?? 0);
   return (
     <div
       style={{
-        width: size, height: size, borderRadius: '50%',
+        width: size,
+        height: size,
+        borderRadius: '50%',
         background: `oklch(54% 0.13 ${hue})`,
         color: '#fff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size * 0.36, fontWeight: 700,
-        flexShrink: 0, letterSpacing: '-0.01em',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: size * 0.36,
+        fontWeight: 700,
+        flexShrink: 0,
+        letterSpacing: '-0.01em',
       }}
     >
       {initialsOf(name)}
@@ -66,23 +178,36 @@ export function Avatar({
 export function TypeDot({ kind, size = 8 }: { kind: ItemKind; size?: number }): JSX.Element {
   const hue = KIND_META[kind].hue;
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: `oklch(58% 0.12 ${hue})`, flexShrink: 0,
-    }} />
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: `oklch(58% 0.12 ${hue})`,
+        flexShrink: 0,
+      }}
+    />
   );
 }
 
 export function TypePill({ kind, small }: { kind: ItemKind; small?: boolean }): JSX.Element {
   const { label, hue } = KIND_META[kind];
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontSize: small ? 10 : 11, fontWeight: 600,
-      letterSpacing: '0.05em', textTransform: 'uppercase',
-      color: `oklch(42% 0.12 ${hue})`, background: `oklch(95% 0.04 ${hue})`,
-      padding: small ? '2px 7px' : '3px 9px', borderRadius: 4,
-    }}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: small ? 10 : 11,
+        fontWeight: 600,
+        letterSpacing: '0.05em',
+        textTransform: 'uppercase',
+        color: `oklch(42% 0.12 ${hue})`,
+        background: `oklch(95% 0.04 ${hue})`,
+        padding: small ? '2px 7px' : '3px 9px',
+        borderRadius: 4,
+      }}
+    >
       <TypeDot kind={kind} size={5} />
       {label}
     </span>
@@ -92,8 +217,8 @@ export function TypePill({ kind, small }: { kind: ItemKind; small?: boolean }): 
 // ─── Day grouping + warnings ─────────────────────────────────────────────────
 
 export interface Day {
-  date: string;            // ISO date
-  label: string;           // "Friday, May 15"
+  date: string; // ISO date
+  label: string; // "Friday, May 15"
   items: Item[];
   warnings: string[];
   /**
@@ -163,7 +288,9 @@ export function buildDays(trip: { start_date: string; end_date: string }, items:
       };
       if (!byDate.has(arrDate)) byDate.set(arrDate, []);
       byDate.get(arrDate)!.push(shadow);
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
 
   // Synthesize "online check-in opens" markers. Group flights that share a
@@ -172,16 +299,26 @@ export function buildDays(trip: { start_date: string; end_date: string }, items:
   // the timeline doesn't show three identical "online check-in opens"
   // pills for a one-stop itinerary. Flights with no confirmation fall
   // through and each get their own marker.
-  const flights = items.filter((it) => it.kind === 'transit' && (it.start_time || it._arrivalShadow !== true));
+  const flights = items.filter(
+    (it) => it.kind === 'transit' && (it.start_time || it._arrivalShadow !== true),
+  );
   const seenBookings = new Set<string>();
   // Sort by chronological departure so the FIRST leg of each booking
   // is the one that emits the marker.
-  const sortedFlights = flights.slice().sort((a, b) =>
-    a.day_date.localeCompare(b.day_date) || (a.start_time ?? '').localeCompare(b.start_time ?? ''),
-  );
+  const sortedFlights = flights
+    .slice()
+    .sort(
+      (a, b) =>
+        a.day_date.localeCompare(b.day_date) ||
+        (a.start_time ?? '').localeCompare(b.start_time ?? ''),
+    );
   for (const it of sortedFlights) {
     let attrs: { airline?: string; departure_date?: string; departure_time?: string } = {};
-    try { attrs = JSON.parse(it.attributes_json) as typeof attrs; } catch { continue; }
+    try {
+      attrs = JSON.parse(it.attributes_json) as typeof attrs;
+    } catch {
+      continue;
+    }
     const depDate = attrs.departure_date ?? it.day_date;
     const depTime = attrs.departure_time ?? it.start_time ?? null;
     if (!depTime) continue;
@@ -252,7 +389,9 @@ function findCoveringPackage(allItems: Item[], date: string): Item | null {
     try {
       const a = JSON.parse(it.attributes_json) as { end_date?: string };
       endDate = a.end_date ?? null;
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
     if (!endDate) continue;
     if (date > it.day_date && date < endDate) return it;
   }
@@ -284,7 +423,9 @@ function findActiveLodging(allItems: Item[], date: string): Item | null {
       const a = JSON.parse(it.attributes_json) as { end_date?: string; includes_lodging?: string };
       endDate = a.end_date ?? null;
       includesLodging = a.includes_lodging === 'yes';
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
     if (!includesLodging || !endDate) continue;
     // Lodging applies to nights spent during the package, i.e. start day
     // through the day BEFORE end_date (you sleep there each night until
@@ -330,7 +471,9 @@ function findCoveringTransit(allItems: Item[], date: string): Item | null {
         end.setUTCDate(end.getUTCDate() + a.arrival_day_offset);
         arrDate = end.toISOString().slice(0, 10);
       }
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
     if (!arrDate) continue;
     if (date > depDate && date < arrDate) return it;
   }
@@ -369,13 +512,18 @@ function transitDurationMinutes(item: Item): number {
   if (!item.tz || !item.end_tz || !item.start_time || !item.end_time || !item.day_date) return 0;
   let extraDays = 0;
   try {
-    const a = JSON.parse(item.attributes_json) as { departure_date?: string; arrival_date?: string };
+    const a = JSON.parse(item.attributes_json) as {
+      departure_date?: string;
+      arrival_date?: string;
+    };
     if (a.departure_date && a.arrival_date) {
       const dep = new Date(a.departure_date + 'T12:00:00Z').getTime();
       const arr = new Date(a.arrival_date + 'T12:00:00Z').getTime();
       extraDays = Math.max(0, Math.round((arr - dep) / 86_400_000));
     }
-  } catch { /* keep 0 */ }
+  } catch {
+    /* keep 0 */
+  }
   const startUtc = wallClockToUtc(item.day_date, item.start_time, item.tz);
   const endIso = (() => {
     const d = new Date(item.day_date + 'T12:00:00Z');
@@ -388,13 +536,25 @@ function transitDurationMinutes(item: Item): number {
 
 function utcOffsetMinutes(date: Date, tz: string): number {
   const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour12: false,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: tz,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
   const parts = fmt.formatToParts(date);
   const get = (t: string): number => Number(parts.find((p) => p.type === t)?.value);
-  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  const asUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+    get('second'),
+  );
   return Math.round((asUtc - date.getTime()) / 60000);
 }
 
@@ -421,7 +581,9 @@ export function detectWarnings(items: Item[]): string[] {
     try {
       const a = JSON.parse(i.attributes_json) as { includes_meals?: string };
       return a.includes_meals === 'yes' || a.includes_meals === 'some';
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   });
   // Skip the "no meal plans" warning on days where flying eats most of
   // the waking hours — adding a meal would mean eating an airline meal
@@ -434,7 +596,14 @@ export function detectWarnings(items: Item[]): string[] {
     return sum + (d > 0 ? d : 0);
   }, 0);
   const flightDominates = flightMins >= 6 * 60;
-  if (real.length > 0 && !flightDominates && !kinds.has('meal') && !kinds.has('reservation') && !hasMealTitle && !packageCoversMeals) {
+  if (
+    real.length > 0 &&
+    !flightDominates &&
+    !kinds.has('meal') &&
+    !kinds.has('reservation') &&
+    !hasMealTitle &&
+    !packageCoversMeals
+  ) {
     out.push('No meal plans yet — consider adding breakfast, lunch, or dinner.');
   }
 
@@ -460,7 +629,8 @@ export function detectWarnings(items: Item[]): string[] {
   const hasTransit = real.some((i) => i.kind === 'transit');
   if (checkin && !hasTransit) {
     for (const it of real) {
-      if (it === checkin || !it.start_time || it.kind === 'checkout' || it.kind === 'transit') continue;
+      if (it === checkin || !it.start_time || it.kind === 'checkout' || it.kind === 'transit')
+        continue;
       if (it.start_time < (checkin.start_time as string)) {
         out.push(`"${it.title}" at ${it.start_time} is before check-in (${checkin.start_time}).`);
       }
@@ -468,7 +638,8 @@ export function detectWarnings(items: Item[]): string[] {
   }
   if (checkout && !hasTransit) {
     for (const it of real) {
-      if (it === checkout || !it.start_time || it.kind === 'checkin' || it.kind === 'transit') continue;
+      if (it === checkout || !it.start_time || it.kind === 'checkin' || it.kind === 'transit')
+        continue;
       if (it.start_time > (checkout.start_time as string)) {
         out.push(`"${it.title}" at ${it.start_time} is after check-out (${checkout.start_time}).`);
       }
@@ -499,17 +670,26 @@ export function detectWarnings(items: Item[]): string[] {
 // ─── Shared form styles ──────────────────────────────────────────────────────
 
 export const labelStyle: CSSProperties = {
-  display: 'block', fontSize: 10.5, fontWeight: 700,
-  letterSpacing: '0.08em', textTransform: 'uppercase',
-  color: 'var(--text-muted)', marginBottom: 5,
+  display: 'block',
+  fontSize: 10.5,
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  marginBottom: 5,
 };
 
 export const inputStyle: CSSProperties = {
-  width: '100%', boxSizing: 'border-box',
-  border: '1.5px solid var(--border)', borderRadius: 8,
-  padding: '9px 11px', fontSize: 13.5,
-  fontFamily: 'var(--font-body)', background: 'var(--bg)',
-  color: 'var(--text)', outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+  border: '1.5px solid var(--border)',
+  borderRadius: 8,
+  padding: '9px 11px',
+  fontSize: 13.5,
+  fontFamily: 'var(--font-body)',
+  background: 'var(--bg)',
+  color: 'var(--text)',
+  outline: 'none',
   transition: 'border-color 0.15s',
 };
 

@@ -1,20 +1,42 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, type Comment, type Item, type ItemKind, type ReferenceDoc, type Suggestion } from '../api.js';
+import {
+  api,
+  type Comment,
+  type Item,
+  type ItemKind,
+  type ReferenceDoc,
+  type Suggestion,
+} from '../api.js';
 import type { EditorState, RightTab } from './editor-state.js';
 import {
-  Avatar, KIND_META, KIND_LIST, TypeDot, TypePill,
-  inputStyle, labelStyle,
+  Avatar,
+  KIND_META,
+  TYPE_PICKS,
+  pickForItem,
+  TypeDot,
+  TypePill,
+  inputStyle,
+  labelStyle,
 } from './shared.js';
 import { KindAttributes } from './KindAttributes.js';
 import { useToast } from './Toast.js';
 import { PreviewTab } from './PreviewTab.js';
 
 const TABS: Array<{ id: RightTab; icon: string }> = [
-  { id: 'event',    icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
+  {
+    id: 'event',
+    icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+  },
   { id: 'comments', icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
-  { id: 'ai',       icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
-  { id: 'preview',  icon: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 100 6 3 3 0 000-6z' },
-  { id: 'pdf',      icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M16 13H8M16 17H8' },
+  { id: 'ai', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
+  {
+    id: 'preview',
+    icon: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 100 6 3 3 0 000-6z',
+  },
+  {
+    id: 'pdf',
+    icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M16 13H8M16 17H8',
+  },
 ];
 
 export function RightPane({ state }: { state: EditorState }): JSX.Element {
@@ -33,25 +55,46 @@ export function RightPane({ state }: { state: EditorState }): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{
-        display: 'flex', borderBottom: '1.5px solid var(--border)',
-        padding: '0 14px', flexShrink: 0, background: 'var(--surface)',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: '1.5px solid var(--border)',
+          padding: '0 14px',
+          flexShrink: 0,
+          background: 'var(--surface)',
+        }}
+      >
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setRightTab(t.id)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '12px 13px', border: 'none', background: 'transparent',
-              fontSize: 13, fontWeight: rightTab === t.id ? 700 : 500,
-              cursor: 'pointer', transition: 'all 0.15s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '12px 13px',
+              border: 'none',
+              background: 'transparent',
+              fontSize: 13,
+              fontWeight: rightTab === t.id ? 700 : 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
               color: rightTab === t.id ? 'var(--accent)' : 'var(--text-muted)',
               borderBottom: rightTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
-              marginBottom: -1.5, whiteSpace: 'nowrap',
+              marginBottom: -1.5,
+              whiteSpace: 'nowrap',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d={t.icon} />
             </svg>
             {labelFor(t.id)}
@@ -59,11 +102,11 @@ export function RightPane({ state }: { state: EditorState }): JSX.Element {
         ))}
       </div>
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {rightTab === 'event'    && <EventTab state={state} />}
+        {rightTab === 'event' && <EventTab state={state} />}
         {rightTab === 'comments' && <CommentsTab state={state} />}
-        {rightTab === 'ai'       && <AiTab state={state} />}
-        {rightTab === 'preview'  && <PreviewTab state={state} />}
-        {rightTab === 'pdf'      && <PdfTab state={state} />}
+        {rightTab === 'ai' && <AiTab state={state} />}
+        {rightTab === 'preview' && <PreviewTab state={state} />}
+        {rightTab === 'pdf' && <PdfTab state={state} />}
       </div>
     </div>
   );
@@ -89,8 +132,13 @@ function kindDerivesTitle(kind: ItemKind): boolean {
 /** Mirrors `derivesLocation: true` on the server's ItemKindDef registry. */
 function kindDerivesLocation(kind: ItemKind): boolean {
   return (
-    kind === 'transit' || kind === 'checkin' || kind === 'checkout' ||
-    kind === 'meal' || kind === 'reservation' || kind === 'activity' || kind === 'package'
+    kind === 'transit' ||
+    kind === 'checkin' ||
+    kind === 'checkout' ||
+    kind === 'meal' ||
+    kind === 'reservation' ||
+    kind === 'activity' ||
+    kind === 'package'
   );
 }
 
@@ -103,20 +151,30 @@ interface FormState {
   location: string;
   kind: ItemKind;
   notes: string;
-  confirmation: string;  // empty string = no reservation/booking code
+  confirmation: string; // empty string = no reservation/booking code
   attributes: Record<string, unknown>;
 }
 
 function blankForm(): FormState {
   return {
-    start_time: '', end_time: '', title: '', location: '',
-    kind: 'activity', notes: '', confirmation: '', attributes: {},
+    start_time: '',
+    end_time: '',
+    title: '',
+    location: '',
+    kind: 'activity',
+    notes: '',
+    confirmation: '',
+    attributes: {},
   };
 }
 
 function formFromItem(item: Item): FormState {
   let attributes: Record<string, unknown> = {};
-  try { attributes = JSON.parse(item.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
+  try {
+    attributes = JSON.parse(item.attributes_json) as Record<string, unknown>;
+  } catch {
+    /* ok */
+  }
   // For kinds where the structured form is the canonical source of date/time
   // (transit, checkin, checkout — the ownsTime kinds), historical items and
   // PDF imports may carry day_date/start_time/end_time at the base level
@@ -144,7 +202,8 @@ function formFromItem(item: Item): FormState {
 }
 
 function EventTab({ state }: { state: EditorState }): JSX.Element {
-  const { days, items, selectedItemId, selectItem, updateItem, createItem, addForDate, closeAdd } = state;
+  const { days, items, selectedItemId, selectItem, updateItem, createItem, addForDate, closeAdd } =
+    state;
   const selected = useMemo(
     () => items.find((it) => it.id === selectedItemId) ?? null,
     [items, selectedItemId],
@@ -207,23 +266,49 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
       notes: form.notes || null,
       confirmation: form.confirmation || null,
       attributes: form.attributes,
-    } as Partial<Item> & { day_date: string; title: string; kind: ItemKind; attributes?: Record<string, unknown> });
+    } as Partial<Item> & {
+      day_date: string;
+      title: string;
+      kind: ItemKind;
+      attributes?: Record<string, unknown>;
+    });
     if (created) selectItem(created.id);
     closeAdd();
   }
 
   if (!isAdding && !isEditing) {
     return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', height: '100%', gap: 16, padding: 32,
-      }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: '50%',
-          background: 'var(--bg)', border: '1.5px solid var(--border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          gap: 16,
+          padding: 32,
+        }}
+      >
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            background: 'var(--bg)',
+            border: '1.5px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--text-muted)"
+            strokeWidth="1.5"
+          >
             <rect x="3" y="4" width="18" height="18" rx="2" />
             <path d="M16 2v4M8 2v4M3 10h18" />
           </svg>
@@ -238,13 +323,22 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         </div>
         {days.length > 0 && (
           <button
-            onClick={() => { state.openAdd(days[0].date); }}
-            style={{
-              padding: '8px 20px', borderRadius: 20,
-              border: '1.5px solid var(--accent)', background: 'transparent',
-              color: 'var(--accent)', fontSize: 13, cursor: 'pointer', fontWeight: 600,
+            onClick={() => {
+              state.openAdd(days[0].date);
             }}
-          >+ New Item</button>
+            style={{
+              padding: '8px 20px',
+              borderRadius: 20,
+              border: '1.5px solid var(--accent)',
+              background: 'transparent',
+              color: 'var(--accent)',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            + New Item
+          </button>
         )}
       </div>
     );
@@ -254,7 +348,15 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
     <div style={{ height: '100%', overflowY: 'auto', padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
             {isAdding ? 'New Item' : 'Edit Item'}
           </div>
           {isEditing && selected && (
@@ -266,8 +368,18 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         {isEditing && (
           <button
             onClick={() => selectItem(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 20, lineHeight: 1, padding: 4 }}
-          >×</button>
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              fontSize: 20,
+              lineHeight: 1,
+              padding: 4,
+            }}
+          >
+            ×
+          </button>
         )}
       </div>
 
@@ -275,7 +387,11 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         <div style={{ marginBottom: 18 }}>
           <label style={labelStyle}>Day</label>
           <select value={addDate} onChange={(e) => setAddDate(e.target.value)} style={inputStyle}>
-            {days.map((d) => <option key={d.date} value={d.date}>{d.label}</option>)}
+            {days.map((d) => (
+              <option key={d.date} value={d.date}>
+                {d.label}
+              </option>
+            ))}
           </select>
         </div>
       )}
@@ -324,21 +440,28 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
       {!kindDerivesTitle(form.kind) && (
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Title</label>
-          <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Item name…"
-            style={{ ...inputStyle, fontSize: 15, fontWeight: 600 }} />
+          <input
+            value={form.title}
+            onChange={(e) => set('title', e.target.value)}
+            placeholder="Item name…"
+            style={{ ...inputStyle, fontSize: 15, fontWeight: 600 }}
+          />
         </div>
       )}
 
       {!kindDerivesLocation(form.kind) && (
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Location</label>
-          <input value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Where?" style={inputStyle} />
+          <input
+            value={form.location}
+            onChange={(e) => set('location', e.target.value)}
+            placeholder="Where?"
+            style={inputStyle}
+          />
         </div>
       )}
 
-      {isEditing && selected && (
-        <TimezoneRow item={selected} updateItem={updateItem} />
-      )}
+      {isEditing && selected && <TimezoneRow item={selected} updateItem={updateItem} />}
 
       {isEditing && selected && (
         <KindAttributes
@@ -347,7 +470,10 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
           control={{
             mode: 'edit',
             itemId: selected.id,
-            updateItem: updateItem as (id: number, patch: { attributes?: Record<string, unknown> }) => Promise<unknown>,
+            updateItem: updateItem as (
+              id: number,
+              patch: { attributes?: Record<string, unknown> },
+            ) => Promise<unknown>,
           }}
         />
       )}
@@ -359,8 +485,9 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         />
       )}
 
-      {isEditing && selected && (
-        state.participants.length > 0 ? (
+      {isEditing &&
+        selected &&
+        (state.participants.length > 0 ? (
           <ParticipantPicker
             participants={state.participants}
             attended={selected.participant_ids ?? []}
@@ -369,70 +496,112 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         ) : (
           <div style={{ marginBottom: 18 }}>
             <label style={labelStyle}>Who's attending?</label>
-            <div style={{
-              padding: '10px 12px', borderRadius: 8, marginTop: 4,
-              border: '1.5px dashed var(--border)',
-              fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
-            }}>
-              No participants yet. Add them from the ribbon at the top of the trip
-              (the dashed <strong>+</strong> next to the trip header), then come back here to mark
-              who's attending this item.
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 8,
+                marginTop: 4,
+                border: '1.5px dashed var(--border)',
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                lineHeight: 1.5,
+              }}
+            >
+              No participants yet. Add them from the ribbon at the top of the trip (the dashed{' '}
+              <strong>+</strong> next to the trip header), then come back here to mark who's
+              attending this item.
             </div>
           </div>
-        )
-      )}
+        ))}
 
       <div style={{ marginBottom: 18 }}>
         <label style={labelStyle}>Type</label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 1 }}>
-          {KIND_LIST.map((k) => (
-            <button
-              key={k}
-              onClick={() => set('kind', k)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 12px', borderRadius: 20,
-                border: '1.5px solid', fontSize: 12, cursor: 'pointer', fontWeight: 600,
-                transition: 'all 0.15s',
-                borderColor: form.kind === k ? `oklch(60% 0.12 ${KIND_META[k].hue})` : 'var(--border)',
-                background: form.kind === k ? `oklch(95% 0.05 ${KIND_META[k].hue})` : 'transparent',
-                color: form.kind === k ? `oklch(38% 0.12 ${KIND_META[k].hue})` : 'var(--text-muted)',
-              }}
-            >
-              <TypeDot kind={k} size={6} />
-              {KIND_META[k].icon} {KIND_META[k].label}
-            </button>
-          ))}
+          {(() => {
+            // The active type pick has to consider the structured
+            // transit_mode attribute too — Flight, Train, and Ground
+            // transit all map to kind='transit' but pick distinct chips.
+            const active = pickForItem(form.kind, form.attributes);
+            return TYPE_PICKS.map((p) => {
+              const isActive = p.id === active.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    if (p.kind !== form.kind) set('kind', p.kind);
+                    // Always set transit_mode when picking a transit
+                    // chip; clear it when leaving transit so the attr
+                    // doesn't dangle on a non-transit item.
+                    const nextAttrs: Record<string, unknown> = { ...form.attributes };
+                    if (p.kind === 'transit' && p.transit_mode) {
+                      nextAttrs.transit_mode = p.transit_mode;
+                    } else if (p.kind !== 'transit') {
+                      delete nextAttrs.transit_mode;
+                    }
+                    setAttrs(nextAttrs);
+                    if (isEditing && selected) {
+                      void updateItem(selected.id, { attributes: nextAttrs });
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 20,
+                    border: '1.5px solid',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    transition: 'all 0.15s',
+                    borderColor: isActive ? `oklch(60% 0.12 ${p.hue})` : 'var(--border)',
+                    background: isActive ? `oklch(95% 0.05 ${p.hue})` : 'transparent',
+                    color: isActive ? `oklch(38% 0.12 ${p.hue})` : 'var(--text-muted)',
+                  }}
+                >
+                  {p.icon} {p.label}
+                </button>
+              );
+            });
+          })()}
         </div>
       </div>
 
       <div style={{ marginBottom: 22 }}>
         <label style={labelStyle}>Notes</label>
         <textarea
-          value={form.notes} onChange={(e) => set('notes', e.target.value)}
-          placeholder="Any details, confirmation numbers, tips…" rows={3}
+          value={form.notes}
+          onChange={(e) => set('notes', e.target.value)}
+          placeholder="Any details, confirmation numbers, tips…"
+          rows={3}
           style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, minHeight: 72 }}
         />
       </div>
 
-      {isAdding && (() => {
-        const canSave = !!form.title.trim() || kindDerivesTitle(form.kind);
-        return (
-          <button
-            onClick={() => void saveNew()}
-            disabled={!canSave}
-            style={{
-              width: '100%', padding: 12, borderRadius: 10, border: 'none',
-              background: canSave ? 'var(--accent)' : 'var(--border)',
-              color: '#fff', fontSize: 14,
-              cursor: canSave ? 'pointer' : 'default',
-              fontWeight: 700, transition: 'all 0.15s',
-            }}
-          >
-            Add to Timeline
-          </button>
-        );
-      })()}
+      {isAdding &&
+        (() => {
+          const canSave = !!form.title.trim() || kindDerivesTitle(form.kind);
+          return (
+            <button
+              onClick={() => void saveNew()}
+              disabled={!canSave}
+              style={{
+                width: '100%',
+                padding: 12,
+                borderRadius: 10,
+                border: 'none',
+                background: canSave ? 'var(--accent)' : 'var(--border)',
+                color: '#fff',
+                fontSize: 14,
+                cursor: canSave ? 'pointer' : 'default',
+                fontWeight: 700,
+                transition: 'all 0.15s',
+              }}
+            >
+              Add to Timeline
+            </button>
+          );
+        })()}
     </div>
   );
 }
@@ -476,7 +645,9 @@ function TimezoneRow({
         <input
           value={tz}
           onChange={(e) => setTz(e.target.value)}
-          onBlur={() => { void updateItem(item.id, { tz: tz || null }); }}
+          onBlur={() => {
+            void updateItem(item.id, { tz: tz || null });
+          }}
           placeholder="e.g. Australia/Sydney"
           style={{ ...inputStyle, flex: 1 }}
         />
@@ -484,7 +655,9 @@ function TimezoneRow({
           <input
             value={endTz}
             onChange={(e) => setEndTz(e.target.value)}
-            onBlur={() => { void updateItem(item.id, { end_tz: endTz || null }); }}
+            onBlur={() => {
+              void updateItem(item.id, { end_tz: endTz || null });
+            }}
             placeholder="e.g. Asia/Tokyo"
             style={{ ...inputStyle, flex: 1 }}
           />
@@ -494,18 +667,27 @@ function TimezoneRow({
           disabled={busy || !item.location}
           title={item.location ? 'Derive from location' : 'Add a location first'}
           style={{
-            padding: '0 10px', borderRadius: 6, border: '1.5px solid var(--border)',
-            background: 'transparent', fontSize: 12, cursor: busy ? 'default' : 'pointer',
-            color: 'var(--text-muted)', flexShrink: 0,
+            padding: '0 10px',
+            borderRadius: 6,
+            border: '1.5px solid var(--border)',
+            background: 'transparent',
+            fontSize: 12,
+            cursor: busy ? 'default' : 'pointer',
+            color: 'var(--text-muted)',
+            flexShrink: 0,
           }}
-        >{busy ? '…' : '✨'}</button>
+        >
+          {busy ? '…' : '✨'}
+        </button>
       </div>
     </div>
   );
 }
 
 function ParticipantPicker({
-  participants, attended, onChange,
+  participants,
+  attended,
+  onChange,
 }: {
   participants: Array<{ id: number; display_name: string; color_hue: number | null }>;
   attended: number[];
@@ -526,12 +708,19 @@ function ParticipantPicker({
         <button
           onClick={() => onChange([])}
           style={{
-            padding: '4px 10px', borderRadius: 14, fontSize: 11.5, fontWeight: 600,
-            border: '1.5px solid', borderColor: isAll ? 'var(--accent)' : 'var(--border)',
+            padding: '4px 10px',
+            borderRadius: 14,
+            fontSize: 11.5,
+            fontWeight: 600,
+            border: '1.5px solid',
+            borderColor: isAll ? 'var(--accent)' : 'var(--border)',
             background: isAll ? 'oklch(97% 0.02 75)' : 'transparent',
-            color: isAll ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer',
+            color: isAll ? 'var(--accent)' : 'var(--text-muted)',
+            cursor: 'pointer',
           }}
-        >Everyone</button>
+        >
+          Everyone
+        </button>
         {participants.map((p) => {
           const on = attended.includes(p.id);
           const hue = p.color_hue ?? 200;
@@ -540,14 +729,19 @@ function ParticipantPicker({
               key={p.id}
               onClick={() => toggle(p.id)}
               style={{
-                padding: '4px 10px', borderRadius: 14, fontSize: 11.5, fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: 14,
+                fontSize: 11.5,
+                fontWeight: 600,
                 border: '1.5px solid',
                 borderColor: on ? `oklch(58% 0.14 ${hue})` : 'var(--border)',
                 background: on ? `oklch(95% 0.05 ${hue})` : 'transparent',
                 color: on ? `oklch(35% 0.14 ${hue})` : 'var(--text-muted)',
                 cursor: 'pointer',
               }}
-            >{p.display_name}</button>
+            >
+              {p.display_name}
+            </button>
           );
         })}
       </div>
@@ -567,9 +761,14 @@ function CommentsTab({ state }: { state: EditorState }): JSX.Element {
     const ids = items.filter((it) => (commentCounts[it.id] ?? 0) > 0).map((it) => it.id);
     if (selectedItemId && !ids.includes(selectedItemId)) ids.push(selectedItemId);
     ids.forEach((id) => {
-      api.listComments(id).then((r) => {
-        setCommentsByItem((prev) => ({ ...prev, [id]: r.comments }));
-      }).catch(() => {/* ignore */});
+      api
+        .listComments(id)
+        .then((r) => {
+          setCommentsByItem((prev) => ({ ...prev, [id]: r.comments }));
+        })
+        .catch(() => {
+          /* ignore */
+        });
     });
   }, [items, selectedItemId, commentCounts]);
 
@@ -587,10 +786,16 @@ function CommentsTab({ state }: { state: EditorState }): JSX.Element {
 
   if (visible.length === 0) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100%', color: 'var(--text-muted)', fontSize: 13,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          color: 'var(--text-muted)',
+          fontSize: 13,
+        }}
+      >
         No comments yet — select an item to start a thread.
       </div>
     );
@@ -603,26 +808,50 @@ function CommentsTab({ state }: { state: EditorState }): JSX.Element {
         return (
           <div key={item.id} style={{ marginBottom: 24 }}>
             <button
-              onClick={() => { selectItem(item.id); scrollToItem(item.id); }}
+              onClick={() => {
+                selectItem(item.id);
+                scrollToItem(item.id);
+              }}
               title="Jump to item in timeline"
               style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: '4px 0', marginBottom: 10, textAlign: 'left', width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px 0',
+                marginBottom: 10,
+                textAlign: 'left',
+                width: '100%',
               }}
             >
               <TypeDot kind={item.kind} size={7} />
-              <span style={{
-                fontSize: 12.5, fontWeight: 700,
-                color: item.id === selectedItemId ? 'var(--accent)' : 'var(--text)',
-                flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: item.id === selectedItemId ? 'var(--accent)' : 'var(--text)',
+                  flex: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {item.title}
               </span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
                 {item.start_time ?? ''} · {item.day_date}
               </span>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-muted)"
+                strokeWidth="2.5"
+                style={{ flexShrink: 0 }}
+              >
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </button>
@@ -632,16 +861,24 @@ function CommentsTab({ state }: { state: EditorState }): JSX.Element {
                 <Avatar name={c.author_name} userId={c.user_id} size={28} />
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 3 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{c.author_name}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{relativeTime(c.created_at)}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>
+                      {c.author_name}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {relativeTime(c.created_at)}
+                    </span>
                   </div>
-                  <div style={{
-                    fontSize: 13, color: 'var(--text)', lineHeight: 1.5,
-                    background: 'oklch(96.5% 0.008 75)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '4px 10px 10px 10px',
-                    padding: '7px 11px',
-                  }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--text)',
+                      lineHeight: 1.5,
+                      background: 'oklch(96.5% 0.008 75)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '4px 10px 10px 10px',
+                      padding: '7px 11px',
+                    }}
+                  >
                     {c.body}
                   </div>
                 </div>
@@ -652,20 +889,32 @@ function CommentsTab({ state }: { state: EditorState }): JSX.Element {
               <input
                 value={replies[item.id] ?? ''}
                 onChange={(e) => setReplies((p) => ({ ...p, [item.id]: e.target.value }))}
-                onKeyDown={(e) => { if (e.key === 'Enter') void postReply(item.id); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void postReply(item.id);
+                }}
                 placeholder="Reply…"
                 style={{
-                  flex: 1, border: '1.5px solid var(--border)', borderRadius: 20,
-                  padding: '6px 12px', fontSize: 12.5, background: 'var(--bg)',
-                  color: 'var(--text)', outline: 'none',
+                  flex: 1,
+                  border: '1.5px solid var(--border)',
+                  borderRadius: 20,
+                  padding: '6px 12px',
+                  fontSize: 12.5,
+                  background: 'var(--bg)',
+                  color: 'var(--text)',
+                  outline: 'none',
                 }}
               />
               <button
                 onClick={() => void postReply(item.id)}
                 style={{
-                  padding: '6px 12px', borderRadius: 20, border: 'none',
-                  background: 'var(--accent)', color: '#fff', fontSize: 12,
-                  cursor: 'pointer', fontWeight: 600,
+                  padding: '6px 12px',
+                  borderRadius: 20,
+                  border: 'none',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontWeight: 600,
                 }}
               >
                 Post
@@ -694,7 +943,14 @@ function relativeTime(iso: string): string {
 // ─── AI tab ──────────────────────────────────────────────────────────────────
 
 function AiTab({ state }: { state: EditorState }): JSX.Element {
-  const { aiMessages, aiSuggestions, aiLoading, sendAiMessage, acceptSuggestion, rejectSuggestion } = state;
+  const {
+    aiMessages,
+    aiSuggestions,
+    aiLoading,
+    sendAiMessage,
+    acceptSuggestion,
+    rejectSuggestion,
+  } = state;
   const [input, setInput] = useState('');
   const [modifying, setModifying] = useState<Suggestion | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -721,66 +977,132 @@ function AiTab({ state }: { state: EditorState }): JSX.Element {
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
         {aiMessages.length === 0 && aiSuggestions.length === 0 && (
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: '50%', background: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px',
+              }}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text)', marginBottom: 6 }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 18,
+                color: 'var(--text)',
+                marginBottom: 6,
+              }}
+            >
               Tripsheet AI
             </div>
-            <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
+            <div
+              style={{
+                fontSize: 12.5,
+                color: 'var(--text-muted)',
+                marginBottom: 20,
+                lineHeight: 1.6,
+              }}
+            >
               Accepted suggestions fly straight into your timeline.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {starters.map((s) => (
                 <button
                   key={s}
-                  onClick={() => { if (!aiLoading) void sendAiMessage(s); }}
+                  onClick={() => {
+                    if (!aiLoading) void sendAiMessage(s);
+                  }}
                   disabled={aiLoading}
                   style={{
-                    padding: '9px 14px', borderRadius: 8,
-                    border: '1.5px solid var(--border)', background: 'var(--surface)',
-                    color: 'var(--text)', fontSize: 12.5, cursor: aiLoading ? 'default' : 'pointer',
-                    textAlign: 'left', transition: 'border-color 0.15s',
+                    padding: '9px 14px',
+                    borderRadius: 8,
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text)',
+                    fontSize: 12.5,
+                    cursor: aiLoading ? 'default' : 'pointer',
+                    textAlign: 'left',
+                    transition: 'border-color 0.15s',
                     opacity: aiLoading ? 0.5 : 1,
                   }}
-                  onMouseEnter={(e) => { if (!aiLoading) e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
-                >{s}</button>
+                  onMouseEnter={(e) => {
+                    if (!aiLoading) e.currentTarget.style.borderColor = 'var(--accent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                  }}
+                >
+                  {s}
+                </button>
               ))}
             </div>
           </div>
         )}
 
         {aiMessages.map((m, i) => (
-          <div key={i} style={{
-            marginBottom: 12, display: 'flex',
-            justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 8,
-          }}>
+          <div
+            key={i}
+            style={{
+              marginBottom: 12,
+              display: 'flex',
+              justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
+              gap: 8,
+            }}
+          >
             {m.role === 'assistant' && (
-              <div style={{
-                width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, marginTop: 2,
-              }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  background: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2"
+                >
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                 </svg>
               </div>
             )}
-            <div style={{
-              maxWidth: '82%', padding: '9px 13px',
-              borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-              background: m.role === 'user' ? 'var(--accent)' : 'oklch(96.5% 0.008 75)',
-              color: m.role === 'user' ? '#fff' : 'var(--text)',
-              fontSize: 13, lineHeight: 1.55,
-              border: m.role === 'user' ? 'none' : '1px solid var(--border)',
-              whiteSpace: 'pre-wrap',
-            }}>
+            <div
+              style={{
+                maxWidth: '82%',
+                padding: '9px 13px',
+                borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                background: m.role === 'user' ? 'var(--accent)' : 'oklch(96.5% 0.008 75)',
+                color: m.role === 'user' ? '#fff' : 'var(--text)',
+                fontSize: 13,
+                lineHeight: 1.55,
+                border: m.role === 'user' ? 'none' : '1px solid var(--border)',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
               {m.content}
             </div>
           </div>
@@ -788,24 +1110,51 @@ function AiTab({ state }: { state: EditorState }): JSX.Element {
 
         {aiLoading && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-            <div style={{
-              width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <div style={{
-              padding: '9px 14px', borderRadius: '12px 12px 12px 3px',
-              background: 'oklch(96.5% 0.008 75)', border: '1px solid var(--border)',
-              display: 'flex', gap: 5, alignItems: 'center',
-            }}>
+            <div
+              style={{
+                padding: '9px 14px',
+                borderRadius: '12px 12px 12px 3px',
+                background: 'oklch(96.5% 0.008 75)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                gap: 5,
+                alignItems: 'center',
+              }}
+            >
               {[0, 1, 2].map((i) => (
-                <div key={i} style={{
-                  width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)',
-                  animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
-                }} />
+                <div
+                  key={i}
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
+                    animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+                  }}
+                />
               ))}
             </div>
           </div>
@@ -813,11 +1162,19 @@ function AiTab({ state }: { state: EditorState }): JSX.Element {
 
         {aiSuggestions.length > 0 && (
           <div style={{ marginTop: 14 }}>
-            <div style={{
-              fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
-              textTransform: 'uppercase', color: 'var(--text-muted)',
-              marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8,
-            }}>
+            <div
+              style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBottom: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               {aiSuggestions.length} suggestion{aiSuggestions.length !== 1 ? 's' : ''}
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -842,29 +1199,53 @@ function AiTab({ state }: { state: EditorState }): JSX.Element {
       <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
-            value={input} onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') send();
+            }}
             placeholder="Ask about your trip…"
             style={{
-              flex: 1, border: '1.5px solid var(--border)', borderRadius: 10,
-              padding: '9px 13px', fontSize: 13, background: 'var(--bg)',
-              color: 'var(--text)', outline: 'none', transition: 'border-color 0.15s',
+              flex: 1,
+              border: '1.5px solid var(--border)',
+              borderRadius: 10,
+              padding: '9px 13px',
+              fontSize: 13,
+              background: 'var(--bg)',
+              color: 'var(--text)',
+              outline: 'none',
+              transition: 'border-color 0.15s',
             }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--accent)'; }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'var(--accent)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'var(--border)';
+            }}
           />
           <button
             onClick={send}
             disabled={aiLoading || !input.trim()}
             style={{
-              padding: '9px 14px', borderRadius: 10, border: 'none',
+              padding: '9px 14px',
+              borderRadius: 10,
+              border: 'none',
               background: input.trim() && !aiLoading ? 'var(--accent)' : 'var(--border)',
               color: input.trim() && !aiLoading ? '#fff' : 'var(--text-muted)',
               cursor: input.trim() && !aiLoading ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', transition: 'all 0.15s',
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'all 0.15s',
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
               <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
             </svg>
           </button>
@@ -890,19 +1271,28 @@ function AiTab({ state }: { state: EditorState }): JSX.Element {
 // ─── Suggestion cards + modify modal ─────────────────────────────────────────
 
 function parsePayload(s: Suggestion): Record<string, unknown> {
-  try { return JSON.parse(s.payload_json) as Record<string, unknown>; } catch { return {}; }
+  try {
+    return JSON.parse(s.payload_json) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 const KIND_LABEL: Record<Suggestion['kind'], { label: string; hue: number; verb: string }> = {
-  add_item:    { label: 'Add',    hue: 160, verb: 'Add' },
-  modify_item: { label: 'Edit',   hue: 45,  verb: 'Apply' },
-  remove_item: { label: 'Remove', hue: 15,  verb: 'Remove' },
-  move_item:   { label: 'Move',   hue: 260, verb: 'Move' },
-  note:        { label: 'Note',   hue: 75,  verb: 'Dismiss' },
+  add_item: { label: 'Add', hue: 160, verb: 'Add' },
+  modify_item: { label: 'Edit', hue: 45, verb: 'Apply' },
+  remove_item: { label: 'Remove', hue: 15, verb: 'Remove' },
+  move_item: { label: 'Move', hue: 260, verb: 'Move' },
+  note: { label: 'Note', hue: 75, verb: 'Dismiss' },
 };
 
 function SuggestionCard({
-  suggestion, items, days, onAccept, onModify, onReject,
+  suggestion,
+  items,
+  days,
+  onAccept,
+  onModify,
+  onReject,
 }: {
   suggestion: Suggestion;
   items: Item[];
@@ -913,7 +1303,7 @@ function SuggestionCard({
 }): JSX.Element {
   const payload = parsePayload(suggestion);
   const target = suggestion.target_item_id
-    ? items.find((it) => it.id === suggestion.target_item_id) ?? null
+    ? (items.find((it) => it.id === suggestion.target_item_id) ?? null)
     : null;
   const meta = KIND_LABEL[suggestion.kind];
   const [flying, setFlying] = useState<'idle' | 'accept' | 'reject'>('idle');
@@ -927,54 +1317,90 @@ function SuggestionCard({
     setTimeout(() => onReject(suggestion.id), 240);
   };
 
-  const acceptable = suggestion.kind === 'add_item'
-    || suggestion.kind === 'note'
-    || (!!target && suggestion.kind !== 'add_item');
-  const modifiable = suggestion.kind === 'add_item' || suggestion.kind === 'modify_item' || suggestion.kind === 'move_item';
+  const acceptable =
+    suggestion.kind === 'add_item' ||
+    suggestion.kind === 'note' ||
+    (!!target && suggestion.kind !== 'add_item');
+  const modifiable =
+    suggestion.kind === 'add_item' ||
+    suggestion.kind === 'modify_item' ||
+    suggestion.kind === 'move_item';
 
   return (
-    <div style={{
-      background: 'var(--surface)', border: '1.5px solid var(--border)',
-      borderLeft: `3px solid oklch(60% 0.13 ${meta.hue})`,
-      borderRadius: 12, padding: '14px 16px', marginBottom: 10,
-      transform: flying === 'accept' ? 'translateX(50px) scale(0.95)'
-        : flying === 'reject' ? 'translateX(-50px) scale(0.95)' : 'none',
-      opacity: flying === 'idle' ? 1 : 0,
-      transition: 'all 0.28s ease',
-    }}>
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1.5px solid var(--border)',
+        borderLeft: `3px solid oklch(60% 0.13 ${meta.hue})`,
+        borderRadius: 12,
+        padding: '14px 16px',
+        marginBottom: 10,
+        transform:
+          flying === 'accept'
+            ? 'translateX(50px) scale(0.95)'
+            : flying === 'reject'
+              ? 'translateX(-50px) scale(0.95)'
+              : 'none',
+        opacity: flying === 'idle' ? 1 : 0,
+        transition: 'all 0.28s ease',
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-          color: `oklch(40% 0.12 ${meta.hue})`,
-          background: `oklch(95% 0.05 ${meta.hue})`,
-          padding: '2px 8px', borderRadius: 4,
-        }}>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: `oklch(40% 0.12 ${meta.hue})`,
+            background: `oklch(95% 0.05 ${meta.hue})`,
+            padding: '2px 8px',
+            borderRadius: 4,
+          }}
+        >
           {meta.label}
         </span>
-        {suggestion.kind === 'add_item' && typeof payload.kind === 'string' && payload.kind in KIND_META && (
-          <TypePill kind={payload.kind as ItemKind} small />
-        )}
+        {suggestion.kind === 'add_item' &&
+          typeof payload.kind === 'string' &&
+          payload.kind in KIND_META && <TypePill kind={payload.kind as ItemKind} small />}
         {target && <TypePill kind={target.kind} small />}
       </div>
 
       <SuggestionBody kind={suggestion.kind} payload={payload} target={target} days={days} />
 
-      <div style={{
-        fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
-        margin: '10px 0', padding: '7px 10px', background: 'var(--bg)', borderRadius: 7,
-      }}>
+      <div
+        style={{
+          fontSize: 12,
+          color: 'var(--text-muted)',
+          lineHeight: 1.5,
+          margin: '10px 0',
+          padding: '7px 10px',
+          background: 'var(--bg)',
+          borderRadius: 7,
+        }}
+      >
         {suggestion.rationale}
       </div>
 
       <div style={{ display: 'flex', gap: 7 }}>
-        <button onClick={reject} style={suggBtn('reject')}>✕ Skip</button>
-        {modifiable && <button onClick={() => onModify(suggestion)} style={suggBtn('modify')}>✎ Edit</button>}
+        <button onClick={reject} style={suggBtn('reject')}>
+          ✕ Skip
+        </button>
+        {modifiable && (
+          <button onClick={() => onModify(suggestion)} style={suggBtn('modify')}>
+            ✎ Edit
+          </button>
+        )}
         <button onClick={accept} disabled={!acceptable} style={suggBtn('accept')}>
-          {suggestion.kind === 'remove_item' ? '🗑 Remove'
-            : suggestion.kind === 'move_item' ? '→ Move'
-            : suggestion.kind === 'modify_item' ? '✓ Apply'
-            : suggestion.kind === 'note' ? '✓ Got it'
-            : '+ Add'}
+          {suggestion.kind === 'remove_item'
+            ? '🗑 Remove'
+            : suggestion.kind === 'move_item'
+              ? '→ Move'
+              : suggestion.kind === 'modify_item'
+                ? '✓ Apply'
+                : suggestion.kind === 'note'
+                  ? '✓ Got it'
+                  : '+ Add'}
         </button>
       </div>
     </div>
@@ -982,7 +1408,10 @@ function SuggestionCard({
 }
 
 function SuggestionBody({
-  kind, payload, target, days,
+  kind,
+  payload,
+  target,
+  days,
 }: {
   kind: Suggestion['kind'];
   payload: Record<string, unknown>;
@@ -995,14 +1424,27 @@ function SuggestionBody({
     const title = String(payload.title ?? '(untitled)');
     return (
       <div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>{title}</div>
-        {str('location') && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{str('location')}</div>}
-        {(str('start_time') || str('day_date')) && (
-          <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
-            {dayLabel(str('day_date'), days)}{str('start_time') ? ` · ${str('start_time')}` : ''}
+        <div
+          style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}
+        >
+          {title}
+        </div>
+        {str('location') && (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            {str('location')}
           </div>
         )}
-        {str('notes') && <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 6, fontStyle: 'italic' }}>{str('notes')}</div>}
+        {(str('start_time') || str('day_date')) && (
+          <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
+            {dayLabel(str('day_date'), days)}
+            {str('start_time') ? ` · ${str('start_time')}` : ''}
+          </div>
+        )}
+        {str('notes') && (
+          <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 6, fontStyle: 'italic' }}>
+            {str('notes')}
+          </div>
+        )}
       </div>
     );
   }
@@ -1016,20 +1458,31 @@ function SuggestionBody({
   }
 
   if (!target) {
-    return <div style={{ fontSize: 12.5, color: 'oklch(50% 0.14 25)' }}>
-      Target item not found (id {payload.target_item_id ? String(payload.target_item_id) : '?'}).
-    </div>;
+    return (
+      <div style={{ fontSize: 12.5, color: 'oklch(50% 0.14 25)' }}>
+        Target item not found (id {payload.target_item_id ? String(payload.target_item_id) : '?'}).
+      </div>
+    );
   }
 
   if (kind === 'remove_item') {
     return (
       <div>
-        <div style={{
-          fontSize: 14, fontWeight: 600, color: 'var(--text-muted)',
-          textDecoration: 'line-through', textDecorationColor: 'oklch(55% 0.15 25)',
-        }}>{target.title}</div>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            textDecoration: 'line-through',
+            textDecorationColor: 'oklch(55% 0.15 25)',
+          }}
+        >
+          {target.title}
+        </div>
         <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 3 }}>
-          {target.day_date}{target.start_time ? ` · ${target.start_time}` : ''}{target.location ? ` · ${target.location}` : ''}
+          {target.day_date}
+          {target.start_time ? ` · ${target.start_time}` : ''}
+          {target.location ? ` · ${target.location}` : ''}
         </div>
       </div>
     );
@@ -1041,14 +1494,25 @@ function SuggestionBody({
     return (
       <div>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{target.title}</div>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8, marginTop: 6,
-          fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums',
-        }}>
-          <span>{target.day_date}{target.start_time ? ` · ${target.start_time}` : ''}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 6,
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          <span>
+            {target.day_date}
+            {target.start_time ? ` · ${target.start_time}` : ''}
+          </span>
           <span style={{ color: 'var(--accent)' }}>→</span>
           <span style={{ color: 'var(--text)', fontWeight: 600 }}>
-            {toDay}{toTime ? ` · ${toTime}` : ''}
+            {toDay}
+            {toTime ? ` · ${toTime}` : ''}
           </span>
         </div>
       </div>
@@ -1094,16 +1558,36 @@ function dayLabel(date: string, days: Array<{ date: string; label: string }>): s
 
 function suggBtn(variant: 'accept' | 'modify' | 'reject'): React.CSSProperties {
   const base: React.CSSProperties = {
-    flex: 1, padding: '7px 0', borderRadius: 7,
-    fontSize: 12.5, cursor: 'pointer', fontWeight: 700,
-    border: '1.5px solid', transition: 'all 0.15s',
+    flex: 1,
+    padding: '7px 0',
+    borderRadius: 7,
+    fontSize: 12.5,
+    cursor: 'pointer',
+    fontWeight: 700,
+    border: '1.5px solid',
+    transition: 'all 0.15s',
   };
-  if (variant === 'accept') return { ...base, background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)', flex: 1.3 };
-  return { ...base, background: 'transparent', color: 'var(--text-muted)', borderColor: 'var(--border)' };
+  if (variant === 'accept')
+    return {
+      ...base,
+      background: 'var(--accent)',
+      color: '#fff',
+      borderColor: 'var(--accent)',
+      flex: 1.3,
+    };
+  return {
+    ...base,
+    background: 'transparent',
+    color: 'var(--text-muted)',
+    borderColor: 'var(--border)',
+  };
 }
 
 function ModifyModal({
-  state, suggestion, onSave, onClose,
+  state,
+  suggestion,
+  onSave,
+  onClose,
 }: {
   state: EditorState;
   suggestion: Suggestion;
@@ -1117,23 +1601,36 @@ function ModifyModal({
   return (
     <div
       style={{
-        position: 'fixed', inset: 0,
-        background: 'oklch(15% 0.02 65 / 0.4)', zIndex: 300,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'fixed',
+        inset: 0,
+        background: 'oklch(15% 0.02 65 / 0.4)',
+        zIndex: 300,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div style={{
-        background: 'var(--surface)', borderRadius: 14, padding: 26,
-        width: 380, boxShadow: '0 20px 50px oklch(15% 0.04 65 / 0.2)',
-        border: '1px solid var(--border)',
-      }}>
+      <div
+        style={{
+          background: 'var(--surface)',
+          borderRadius: 14,
+          padding: 26,
+          width: 380,
+          boxShadow: '0 20px 50px oklch(15% 0.04 65 / 0.2)',
+          border: '1px solid var(--border)',
+        }}
+      >
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, marginBottom: 18 }}>
           Edit before adding
         </div>
         {(['title', 'location', 'start_time', 'notes'] as const).map((k) => (
           <div key={k} style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>{k === 'start_time' ? 'Time' : k[0].toUpperCase() + k.slice(1)}</label>
+            <label style={labelStyle}>
+              {k === 'start_time' ? 'Time' : k[0].toUpperCase() + k.slice(1)}
+            </label>
             <input
               value={(payload[k] as string) ?? ''}
               onChange={(e) => set(k, e.target.value)}
@@ -1149,26 +1646,43 @@ function ModifyModal({
             onChange={(e) => set('day_date', e.target.value)}
             style={inputStyle}
           >
-            {days.map((d) => <option key={d.date} value={d.date}>{d.label}</option>)}
+            {days.map((d) => (
+              <option key={d.date} value={d.date}>
+                {d.label}
+              </option>
+            ))}
           </select>
         </div>
         <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
             style={{
-              padding: '9px 16px', borderRadius: 8,
-              border: '1.5px solid var(--border)', background: 'transparent',
-              fontSize: 13, cursor: 'pointer', color: 'var(--text-muted)',
+              padding: '9px 16px',
+              borderRadius: 8,
+              border: '1.5px solid var(--border)',
+              background: 'transparent',
+              fontSize: 13,
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
             }}
-          >Cancel</button>
+          >
+            Cancel
+          </button>
           <button
             onClick={() => void onSave({ ...payload, day_date: dayDate })}
             style={{
-              padding: '9px 16px', borderRadius: 8, border: 'none',
-              background: 'var(--accent)', color: '#fff', fontSize: 13,
-              cursor: 'pointer', fontWeight: 700,
+              padding: '9px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontWeight: 700,
             }}
-          >Add</button>
+          >
+            Add
+          </button>
         </div>
       </div>
     </div>
@@ -1200,16 +1714,24 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
   // Poll docs that are still parsing, until they flip to complete/error.
   useEffect(() => {
     if (!docs.some((d) => d.parse_status === 'pending' || d.parse_status === 'running')) return;
-    const t = setInterval(() => { void refreshDocs(); }, 2500);
+    const t = setInterval(() => {
+      void refreshDocs();
+    }, 2500);
     return () => clearInterval(t);
   }, [docs, refreshDocs]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{
-        display: 'flex', gap: 6, padding: '10px 16px', alignItems: 'center',
-        borderBottom: '1px solid var(--border)', flexShrink: 0,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 6,
+          padding: '10px 16px',
+          alignItems: 'center',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}
+      >
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1 }}>
           {docs.map((d) => (
             <button
@@ -1217,12 +1739,19 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
               onClick={() => setSelected(d)}
               title={d.parse_status === 'error' && d.parse_error ? d.parse_error : d.title}
               style={{
-                padding: '6px 12px', borderRadius: 16,
+                padding: '6px 12px',
+                borderRadius: 16,
                 border: `1.5px solid ${selected?.id === d.id ? 'var(--accent)' : 'var(--border)'}`,
                 background: selected?.id === d.id ? 'oklch(97% 0.02 75)' : 'transparent',
                 color: selected?.id === d.id ? 'var(--accent)' : 'var(--text-muted)',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-                transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
               }}
             >
               {d.title}
@@ -1236,22 +1765,34 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
         {selected && (
           <DocDeleteButton
             doc={selected}
-            onDeleted={() => { setSelected(null); void refreshDocs(); }}
+            onDeleted={() => {
+              setSelected(null);
+              void refreshDocs();
+            }}
           />
         )}
         <button
           onClick={() => setUploadOpen(true)}
           style={{
-            padding: '6px 12px', borderRadius: 16, border: '1.5px solid var(--accent)',
-            background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 700,
-            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            padding: '6px 12px',
+            borderRadius: 16,
+            border: '1.5px solid var(--accent)',
+            background: 'var(--accent)',
+            color: '#fff',
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
         >
           + Upload
         </button>
       </div>
       {selected ? (
-        selected.parse_status === 'complete' || selected.parse_status === 'running' || selected.parse_status === 'pending' ? (
+        selected.parse_status === 'complete' ||
+        selected.parse_status === 'running' ||
+        selected.parse_status === 'pending' ? (
           <iframe
             key={selected.id}
             src={api.docFileUrl(selected.id)}
@@ -1259,18 +1800,35 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
             style={{ flex: 1, border: 'none', background: '#fff' }}
           />
         ) : (
-          <div style={{
-            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 32, color: 'oklch(45% 0.12 25)', fontSize: 13, textAlign: 'center',
-          }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 32,
+              color: 'oklch(45% 0.12 25)',
+              fontSize: 13,
+              textAlign: 'center',
+            }}
+          >
             Parse failed: {selected.parse_error ?? 'unknown error'}
           </div>
         )
       ) : (
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 32, color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', lineHeight: 1.6,
-        }}>
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 32,
+            color: 'var(--text-muted)',
+            fontSize: 13,
+            textAlign: 'center',
+            lineHeight: 1.6,
+          }}
+        >
           Upload a past itinerary or travel journal to reference it while planning.
         </div>
       )}
@@ -1289,18 +1847,18 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
   );
 }
 
-function ReimportButton({
-  state, doc,
-}: { state: EditorState; doc: ReferenceDoc }): JSX.Element {
+function ReimportButton({ state, doc }: { state: EditorState; doc: ReferenceDoc }): JSX.Element {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const itemCount = state.items.length;
   return (
     <button
-      title={confirming
-        ? `Click again — this deletes all ${itemCount} item${itemCount === 1 ? '' : 's'} and rebuilds from "${doc.title}"`
-        : `Reimport from "${doc.title}" (rebuilds the trip from scratch)`}
+      title={
+        confirming
+          ? `Click again — this deletes all ${itemCount} item${itemCount === 1 ? '' : 's'} and rebuilds from "${doc.title}"`
+          : `Reimport from "${doc.title}" (rebuilds the trip from scratch)`
+      }
       disabled={busy}
       onClick={async () => {
         if (!confirming) {
@@ -1321,28 +1879,41 @@ function ReimportButton({
         }
       }}
       style={{
-        padding: '6px 10px', borderRadius: 16,
-        border: '1.5px solid', borderColor: confirming ? 'oklch(58% 0.16 65)' : 'var(--border)',
+        padding: '6px 10px',
+        borderRadius: 16,
+        border: '1.5px solid',
+        borderColor: confirming ? 'oklch(58% 0.16 65)' : 'var(--border)',
         background: confirming ? 'oklch(58% 0.16 65)' : 'transparent',
         color: confirming ? '#fff' : 'var(--text-muted)',
-        fontSize: 11.5, lineHeight: 1, cursor: busy ? 'default' : 'pointer',
-        flexShrink: 0, fontWeight: 600,
+        fontSize: 11.5,
+        lineHeight: 1,
+        cursor: busy ? 'default' : 'pointer',
+        flexShrink: 0,
+        fontWeight: 600,
         opacity: busy ? 0.5 : 1,
       }}
-    >{busy ? 'Working…' : confirming ? 'Confirm reimport' : '↻ Reimport'}</button>
+    >
+      {busy ? 'Working…' : confirming ? 'Confirm reimport' : '↻ Reimport'}
+    </button>
   );
 }
 
 function DocDeleteButton({
-  doc, onDeleted,
-}: { doc: ReferenceDoc; onDeleted: () => void }): JSX.Element {
+  doc,
+  onDeleted,
+}: {
+  doc: ReferenceDoc;
+  onDeleted: () => void;
+}): JSX.Element {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   return (
     <button
-      title={confirming
-        ? 'Click again to confirm — PDF, parsed items, and any pending suggestions will be removed'
-        : `Delete "${doc.title}"`}
+      title={
+        confirming
+          ? 'Click again to confirm — PDF, parsed items, and any pending suggestions will be removed'
+          : `Delete "${doc.title}"`
+      }
       disabled={busy}
       onClick={async () => {
         if (!confirming) {
@@ -1351,35 +1922,63 @@ function DocDeleteButton({
           return;
         }
         setBusy(true);
-        try { await api.deleteDoc(doc.id); onDeleted(); }
-        finally { setBusy(false); setConfirming(false); }
+        try {
+          await api.deleteDoc(doc.id);
+          onDeleted();
+        } finally {
+          setBusy(false);
+          setConfirming(false);
+        }
       }}
       style={{
-        padding: 0, width: 26, height: 26, borderRadius: 16,
-        border: '1.5px solid', borderColor: confirming ? 'oklch(58% 0.16 25)' : 'var(--border)',
+        padding: 0,
+        width: 26,
+        height: 26,
+        borderRadius: 16,
+        border: '1.5px solid',
+        borderColor: confirming ? 'oklch(58% 0.16 25)' : 'var(--border)',
         background: confirming ? 'oklch(58% 0.16 25)' : 'transparent',
         color: confirming ? '#fff' : 'var(--text-muted)',
-        fontSize: 14, lineHeight: 1, cursor: busy ? 'default' : 'pointer',
-        flexShrink: 0, fontWeight: 600,
+        fontSize: 14,
+        lineHeight: 1,
+        cursor: busy ? 'default' : 'pointer',
+        flexShrink: 0,
+        fontWeight: 600,
       }}
-    >×</button>
+    >
+      ×
+    </button>
   );
 }
 
 function ParseBadge({ status }: { status: ReferenceDoc['parse_status'] }): JSX.Element | null {
   if (status === 'complete') return null;
   const style: React.CSSProperties = {
-    fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-    padding: '1px 6px', borderRadius: 8,
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    padding: '1px 6px',
+    borderRadius: 8,
   };
   if (status === 'error') {
-    return <span style={{ ...style, background: 'oklch(93% 0.06 25)', color: 'oklch(45% 0.15 25)' }}>err</span>;
+    return (
+      <span style={{ ...style, background: 'oklch(93% 0.06 25)', color: 'oklch(45% 0.15 25)' }}>
+        err
+      </span>
+    );
   }
-  return <span style={{ ...style, background: 'oklch(94% 0.04 75)', color: 'oklch(50% 0.08 75)' }}>parsing…</span>;
+  return (
+    <span style={{ ...style, background: 'oklch(94% 0.04 75)', color: 'oklch(50% 0.08 75)' }}>
+      parsing…
+    </span>
+  );
 }
 
 export function UploadDrawer({
-  tripId, onClose, onUploaded,
+  tripId,
+  onClose,
+  onUploaded,
 }: {
   tripId: number | null;
   onClose: () => void;
@@ -1411,17 +2010,28 @@ export function UploadDrawer({
   return (
     <div
       style={{
-        position: 'fixed', inset: 0,
-        background: 'oklch(15% 0.02 65 / 0.4)', zIndex: 300,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'fixed',
+        inset: 0,
+        background: 'oklch(15% 0.02 65 / 0.4)',
+        zIndex: 300,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div style={{
-        background: 'var(--surface)', borderRadius: 14, padding: 26,
-        width: 420, boxShadow: '0 20px 50px oklch(15% 0.04 65 / 0.2)',
-        border: '1px solid var(--border)',
-      }}>
+      <div
+        style={{
+          background: 'var(--surface)',
+          borderRadius: 14,
+          padding: 26,
+          width: 420,
+          boxShadow: '0 20px 50px oklch(15% 0.04 65 / 0.2)',
+          border: '1px solid var(--border)',
+        }}
+      >
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, marginBottom: 18 }}>
           Upload reference PDF
         </div>
@@ -1429,7 +2039,8 @@ export function UploadDrawer({
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>File</label>
           <input
-            type="file" accept="application/pdf"
+            type="file"
+            accept="application/pdf"
             onChange={(e) => {
               const f = e.target.files?.[0] ?? null;
               setFile(f);
@@ -1441,22 +2052,38 @@ export function UploadDrawer({
 
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Give it a name you'll recognize later" style={inputStyle} />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Give it a name you'll recognize later"
+            style={inputStyle}
+          />
         </div>
 
-        <div style={{
-          fontSize: 12, color: 'var(--text-muted)', marginBottom: 18,
-          lineHeight: 1.5, padding: '10px 12px', borderRadius: 8,
-          background: 'oklch(97% 0.015 75)', border: '1px dashed var(--border)',
-        }}>
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            marginBottom: 18,
+            lineHeight: 1.5,
+            padding: '10px 12px',
+            borderRadius: 8,
+            background: 'oklch(97% 0.015 75)',
+            border: '1px dashed var(--border)',
+          }}
+        >
           {tripId == null ? (
-            <>Drop in any travel document. We'll figure out what it is —
-            <strong> itineraries become trips automatically</strong>, journals and notes go into
-            your reference library to inform future AI suggestions.</>
+            <>
+              Drop in any travel document. We'll figure out what it is —
+              <strong> itineraries become trips automatically</strong>, journals and notes go into
+              your reference library to inform future AI suggestions.
+            </>
           ) : (
-            <>Drop in a confirmation, an itinerary, or any travel doc.
-            <strong> Confirmations attach to matching items on this trip</strong>; itinerary lines
-            you don't already have appear as swipe-deck suggestions.</>
+            <>
+              Drop in a confirmation, an itinerary, or any travel doc.
+              <strong> Confirmations attach to matching items on this trip</strong>; itinerary lines
+              you don't already have appear as swipe-deck suggestions.
+            </>
           )}
         </div>
 
@@ -1466,18 +2093,36 @@ export function UploadDrawer({
 
         <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
           <button
-            onClick={onClose} disabled={busy}
-            style={{ padding: '9px 16px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--text-muted)' }}
-          >Cancel</button>
-          <button
-            onClick={() => void submit()} disabled={busy || !file || !title.trim()}
+            onClick={onClose}
+            disabled={busy}
             style={{
-              padding: '9px 16px', borderRadius: 8, border: 'none',
+              padding: '9px 16px',
+              borderRadius: 8,
+              border: '1.5px solid var(--border)',
+              background: 'transparent',
+              fontSize: 13,
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => void submit()}
+            disabled={busy || !file || !title.trim()}
+            style={{
+              padding: '9px 16px',
+              borderRadius: 8,
+              border: 'none',
               background: busy || !file || !title.trim() ? 'var(--border)' : 'var(--accent)',
-              color: '#fff', fontSize: 13, fontWeight: 700,
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 700,
               cursor: busy || !file || !title.trim() ? 'default' : 'pointer',
             }}
-          >{busy ? 'Uploading…' : 'Upload'}</button>
+          >
+            {busy ? 'Uploading…' : 'Upload'}
+          </button>
         </div>
       </div>
     </div>

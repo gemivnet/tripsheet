@@ -57,16 +57,26 @@ export function ToastProvider({ children }: { children: ReactNode }): JSX.Elemen
   return (
     <ToastCtx.Provider value={api}>
       {children}
-      <div style={{
-        position: 'fixed', bottom: 60, right: 20, zIndex: 9000,
-        display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none',
-      }}>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 60,
+          right: 20,
+          zIndex: 9000,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          pointerEvents: 'none',
+        }}
+      >
         {toasts.map((t) => (
           <div
             key={t.id}
             onClick={() => dismiss(t.id)}
             style={{ ...toastStyle(t.kind), pointerEvents: 'auto', cursor: 'pointer' }}
-          >{t.message}</div>
+          >
+            {t.message}
+          </div>
         ))}
       </div>
     </ToastCtx.Provider>
@@ -91,29 +101,41 @@ export function useToast(): ToastApi {
 
 function toastStyle(kind: ToastKind): React.CSSProperties {
   const base: React.CSSProperties = {
-    minWidth: 240, maxWidth: 380,
-    padding: '10px 14px', borderRadius: 8, fontSize: 13,
+    minWidth: 240,
+    maxWidth: 380,
+    padding: '10px 14px',
+    borderRadius: 8,
+    fontSize: 13,
     boxShadow: '0 8px 28px oklch(20% 0.04 65 / 0.18)',
-    fontFamily: 'var(--font-body)', fontWeight: 500, lineHeight: 1.4,
+    fontFamily: 'var(--font-body)',
+    fontWeight: 500,
+    lineHeight: 1.4,
   };
-  if (kind === 'error') return {
-    ...base,
-    background: 'oklch(96% 0.04 25)', color: 'oklch(35% 0.16 25)',
-    border: '1.5px solid oklch(60% 0.16 25)',
-  };
-  if (kind === 'success') return {
-    ...base,
-    background: 'oklch(96% 0.04 150)', color: 'oklch(32% 0.13 150)',
-    border: '1.5px solid oklch(58% 0.14 150)',
-  };
-  if (kind === 'warning') return {
-    ...base,
-    background: 'oklch(97% 0.05 75)', color: 'oklch(40% 0.13 65)',
-    border: '1.5px solid oklch(62% 0.14 65)',
-  };
+  if (kind === 'error')
+    return {
+      ...base,
+      background: 'oklch(96% 0.04 25)',
+      color: 'oklch(35% 0.16 25)',
+      border: '1.5px solid oklch(60% 0.16 25)',
+    };
+  if (kind === 'success')
+    return {
+      ...base,
+      background: 'oklch(96% 0.04 150)',
+      color: 'oklch(32% 0.13 150)',
+      border: '1.5px solid oklch(58% 0.14 150)',
+    };
+  if (kind === 'warning')
+    return {
+      ...base,
+      background: 'oklch(97% 0.05 75)',
+      color: 'oklch(40% 0.13 65)',
+      border: '1.5px solid oklch(62% 0.14 65)',
+    };
   return {
     ...base,
-    background: 'oklch(98% 0.01 220)', color: 'oklch(30% 0.04 220)',
+    background: 'oklch(98% 0.01 220)',
+    color: 'oklch(30% 0.04 220)',
     border: '1.5px solid oklch(72% 0.06 220)',
   };
 }

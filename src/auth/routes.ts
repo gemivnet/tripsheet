@@ -21,9 +21,7 @@ export function authRouter(db: DB, config: Config): Router {
   const router = Router();
 
   const allowed = new Set(config.allowed_emails.map((e) => e.toLowerCase()));
-  const findByEmail = db.prepare<[string], UserRow>(
-    'SELECT * FROM users WHERE email = ?',
-  );
+  const findByEmail = db.prepare<[string], UserRow>('SELECT * FROM users WHERE email = ?');
   const insertUser = db.prepare<[string, string, string, string]>(
     'INSERT INTO users (email, display_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
   );

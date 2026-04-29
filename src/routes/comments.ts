@@ -52,9 +52,7 @@ export function commentsRouter(db: DB): Router {
         .prepare('INSERT INTO comments (item_id, user_id, body, created_at) VALUES (?, ?, ?, ?)')
         .run(itemId, userId, parsed.data.body, now);
       const id = Number(info.lastInsertRowid);
-      const row = db
-        .prepare<[number], CommentRow>('SELECT * FROM comments WHERE id = ?')
-        .get(id)!;
+      const row = db.prepare<[number], CommentRow>('SELECT * FROM comments WHERE id = ?').get(id)!;
       writeAudit(db, {
         user_id: userId,
         entity: 'comment',

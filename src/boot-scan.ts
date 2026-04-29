@@ -27,9 +27,7 @@ export function scanExistingUploads(db: DB, dataDir: string): number {
     // want to run the stale-parse recovery below.
   }
 
-  const firstUser = db
-    .prepare<[], UserRow>('SELECT * FROM users ORDER BY id ASC LIMIT 1')
-    .get();
+  const firstUser = db.prepare<[], UserRow>('SELECT * FROM users ORDER BY id ASC LIMIT 1').get();
 
   let created = 0;
   if (firstUser && files.length > 0) {
@@ -61,9 +59,10 @@ export function scanExistingUploads(db: DB, dataDir: string): number {
   // Recover docs stuck in pending/running from a prior boot. Reset them
   // to pending (so queueParse does the status flip) and re-queue.
   const stuck = db
-    .prepare<[], ReferenceDocRow>(
-      `SELECT * FROM reference_docs WHERE parse_status IN ('pending', 'running')`,
-    )
+    .prepare<
+      [],
+      ReferenceDocRow
+    >(`SELECT * FROM reference_docs WHERE parse_status IN ('pending', 'running')`)
     .all();
   if (stuck.length > 0) {
     db.prepare(

@@ -46,7 +46,9 @@ export function DevToolbar(): JSX.Element | null {
     }
   };
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+  }, []);
   useEffect(() => {
     if (!available) return;
     let interval = 1000;
@@ -72,38 +74,60 @@ export function DevToolbar(): JSX.Element | null {
   const events = eventsRef.current;
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000,
-      background: 'oklch(20% 0.02 65)', color: '#fff', fontSize: 11,
-      borderTop: '1px solid oklch(35% 0.02 65)',
-      fontFamily: 'ui-monospace, SF Mono, monospace',
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        background: 'oklch(20% 0.02 65)',
+        color: '#fff',
+        fontSize: 11,
+        borderTop: '1px solid oklch(35% 0.02 65)',
+        fontFamily: 'ui-monospace, SF Mono, monospace',
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 10px' }}>
-        <button onClick={() => setOpen((o) => !o)} style={{
-          background: 'none', border: 'none', color: '#fff', cursor: 'pointer',
-          fontSize: 11, fontFamily: 'inherit',
-        }}>dev {open ? '▾' : '▸'}</button>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: 11,
+            fontFamily: 'inherit',
+          }}
+        >
+          dev {open ? '▾' : '▸'}
+        </button>
 
-        <span style={{
-          color: state.ai_paused ? 'oklch(72% 0.16 25)' : 'oklch(72% 0.14 150)',
-          fontWeight: 600,
-        }}>
+        <span
+          style={{
+            color: state.ai_paused ? 'oklch(72% 0.16 25)' : 'oklch(72% 0.14 150)',
+            fontWeight: 600,
+          }}
+        >
           ai: {state.ai_paused ? 'PAUSED' : 'live'}
         </span>
         <span style={{ color: 'oklch(70% 0.04 65)' }}>{state.model}</span>
         <span style={{ color: 'oklch(70% 0.04 65)' }}>conc: {state.concurrency}</span>
 
-        {activeJobs.length > 0 && (() => {
-          const running = activeJobs.filter((j) => j.status !== 'queued').length;
-          const queued = activeJobs.length - running;
-          const streamed = activeJobs.reduce((s, j) => s + (j.output_tokens ?? 0), 0);
-          return (
-            <span style={{ color: 'oklch(82% 0.12 200)' }}>
-              ⏵ {running} running{queued > 0 ? `, ${queued} queued` : ''}
-              {streamed > 0 && <span style={{ marginLeft: 4 }}>· {streamed.toLocaleString()}t streamed</span>}
-            </span>
-          );
-        })()}
+        {activeJobs.length > 0 &&
+          (() => {
+            const running = activeJobs.filter((j) => j.status !== 'queued').length;
+            const queued = activeJobs.length - running;
+            const streamed = activeJobs.reduce((s, j) => s + (j.output_tokens ?? 0), 0);
+            return (
+              <span style={{ color: 'oklch(82% 0.12 200)' }}>
+                ⏵ {running} running{queued > 0 ? `, ${queued} queued` : ''}
+                {streamed > 0 && (
+                  <span style={{ marginLeft: 4 }}>· {streamed.toLocaleString()}t streamed</span>
+                )}
+              </span>
+            );
+          })()}
 
         <span style={{ color: 'oklch(70% 0.04 65)' }}>
           tokens: {state.usage.requests} req · {totalTokens.toLocaleString()}
@@ -113,27 +137,39 @@ export function DevToolbar(): JSX.Element | null {
 
       {open && (
         <>
-          <div style={{
-            padding: '8px 10px', borderTop: '1px solid oklch(28% 0.02 65)',
-            display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-          }}>
-            <button
-              onClick={() => void api.devPauseAi(!state.ai_paused).then(refresh)}
-              style={btn}
-            >{state.ai_paused ? '▶ resume ai' : '⏸ pause ai'}</button>
+          <div
+            style={{
+              padding: '8px 10px',
+              borderTop: '1px solid oklch(28% 0.02 65)',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              alignItems: 'center',
+            }}
+          >
+            <button onClick={() => void api.devPauseAi(!state.ai_paused).then(refresh)} style={btn}>
+              {state.ai_paused ? '▶ resume ai' : '⏸ pause ai'}
+            </button>
             <select
               value={state.model}
               onChange={(e) => void api.devSetModel(e.target.value || null).then(refresh)}
               style={{ ...btn, padding: '3px 6px' }}
             >
               {[state.model, ...MODELS.filter((m) => m !== state.model)].map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
             </select>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'oklch(70% 0.04 65)' }}>
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'oklch(70% 0.04 65)' }}
+            >
               concurrency
               <input
-                type="number" min={1} max={8} value={state.concurrency}
+                type="number"
+                min={1}
+                max={8}
+                value={state.concurrency}
                 onChange={(e) => {
                   const n = Number(e.target.value);
                   if (Number.isFinite(n)) void api.devSetConcurrency(n).then(refresh);
@@ -157,32 +193,48 @@ export function DevToolbar(): JSX.Element | null {
                     ...btn,
                     background: view === v ? 'oklch(40% 0.02 65)' : 'oklch(28% 0.02 65)',
                   }}
-                >{v}</button>
+                >
+                  {v}
+                </button>
               ))}
             </div>
             {confirmNuke ? (
               <>
                 <span style={{ color: 'oklch(78% 0.16 25)' }}>nuke db?</span>
                 <button
-                  onClick={() => void api.devNuke().then(() => {
-                    setConfirmNuke(false);
-                    void refresh();
-                    window.location.reload();
-                  })}
+                  onClick={() =>
+                    void api.devNuke().then(() => {
+                      setConfirmNuke(false);
+                      void refresh();
+                      window.location.reload();
+                    })
+                  }
                   style={{ ...btn, color: 'oklch(78% 0.16 25)' }}
-                >yes, wipe</button>
-                <button onClick={() => setConfirmNuke(false)} style={btn}>cancel</button>
+                >
+                  yes, wipe
+                </button>
+                <button onClick={() => setConfirmNuke(false)} style={btn}>
+                  cancel
+                </button>
               </>
             ) : (
-              <button onClick={() => setConfirmNuke(true)} style={btn}>💥 nuke</button>
+              <button onClick={() => setConfirmNuke(true)} style={btn}>
+                💥 nuke
+              </button>
             )}
           </div>
 
-          <div style={{
-            borderTop: '1px solid oklch(28% 0.02 65)',
-            background: 'oklch(15% 0.02 65)', maxHeight: 220, overflow: 'auto',
-            padding: '6px 10px', fontSize: 10.5, lineHeight: 1.5,
-          }}>
+          <div
+            style={{
+              borderTop: '1px solid oklch(28% 0.02 65)',
+              background: 'oklch(15% 0.02 65)',
+              maxHeight: 220,
+              overflow: 'auto',
+              padding: '6px 10px',
+              fontSize: 10.5,
+              lineHeight: 1.5,
+            }}
+          >
             {view === 'queue' && <QueuePanel jobs={activeJobs} />}
             {view === 'log' && <LogPanel events={events} />}
             {view === 'exchanges' && (
@@ -192,7 +244,10 @@ export function DevToolbar(): JSX.Element | null {
                 pickedFull={pickedExchange}
                 onPick={async (id) => {
                   setPickedExchangeId(id);
-                  if (id == null) { setPickedExchange(null); return; }
+                  if (id == null) {
+                    setPickedExchange(null);
+                    return;
+                  }
                   try {
                     const r = await api.devGetExchange(id);
                     setPickedExchange(r.exchange);
@@ -228,9 +283,7 @@ function QueuePanel({ jobs }: { jobs: AiJob[] }): JSX.Element {
             </span>
             <span style={{ width: 70 }}>{j.caller}</span>
             <span style={{ color: 'oklch(70% 0.04 65)', width: 110 }}>
-              {runningFor != null
-                ? `running ${runningFor}s`
-                : `queued ${queuedFor}s`}
+              {runningFor != null ? `running ${runningFor}s` : `queued ${queuedFor}s`}
             </span>
             <span style={{ color: 'oklch(70% 0.04 65)' }}>
               {j.output_tokens != null ? `${j.output_tokens.toLocaleString()} tok streamed` : ''}
@@ -259,7 +312,8 @@ function LogPanel({ events }: { events: AiEvent[] }): JSX.Element {
           style={{
             display: 'grid',
             gridTemplateColumns: '70px 90px 90px 1fr',
-            gap: 10, color: eventColor(e.kind),
+            gap: 10,
+            color: eventColor(e.kind),
           }}
         >
           <span style={{ color: 'oklch(60% 0.04 65)' }}>{e.at.slice(11, 19)}</span>
@@ -277,7 +331,10 @@ function LogPanel({ events }: { events: AiEvent[] }): JSX.Element {
 }
 
 function ExchangesPanel({
-  summaries, pickedId, pickedFull, onPick,
+  summaries,
+  pickedId,
+  pickedFull,
+  onPick,
 }: {
   summaries: DevState['exchanges'];
   pickedId: number | string | null;
@@ -298,16 +355,14 @@ function ExchangesPanel({
   useEffect(() => {
     if (pickedId == null) return;
     if (typeof pickedId !== 'string' || !pickedId.startsWith('live:')) return;
-    const t = setInterval(() => { void onPick(pickedId); }, 750);
+    const t = setInterval(() => {
+      void onPick(pickedId);
+    }, 750);
     return () => clearInterval(t);
   }, [pickedId]);
 
   if (summaries.length === 0) {
-    return (
-      <div style={{ color: 'oklch(60% 0.04 65)' }}>
-        no AI calls yet
-      </div>
-    );
+    return <div style={{ color: 'oklch(60% 0.04 65)' }}>no AI calls yet</div>;
   }
   return (
     <div>
@@ -316,14 +371,18 @@ function ExchangesPanel({
           value={pickedId ?? ''}
           onChange={(e) => {
             const v = e.target.value;
-            if (!v) { void onPick(null); return; }
+            if (!v) {
+              void onPick(null);
+              return;
+            }
             void onPick(v.startsWith('live:') ? v : Number(v));
           }}
           style={{ ...btn, padding: '3px 6px', fontSize: 11 }}
         >
           {summaries.map((s) => (
             <option key={String(s.id)} value={String(s.id)}>
-              {s.at.slice(11, 19)} · {s.caller} · in {s.input_tokens ?? '?'} / out {s.output_tokens ?? '?'}
+              {s.at.slice(11, 19)} · {s.caller} · in {s.input_tokens ?? '?'} / out{' '}
+              {s.output_tokens ?? '?'}
               {s.in_flight ? ' · streaming…' : ''}
               {s.error ? ' · ERROR' : ''}
             </option>
@@ -336,14 +395,23 @@ function ExchangesPanel({
       {pickedFull ? (
         <div>
           {pickedFull.error && (
-            <div style={{
-              padding: 8, background: 'oklch(28% 0.06 25)', borderRadius: 4,
-              color: 'oklch(85% 0.1 25)', marginBottom: 6,
-            }}>{pickedFull.error}</div>
+            <div
+              style={{
+                padding: 8,
+                background: 'oklch(28% 0.06 25)',
+                borderRadius: 4,
+                color: 'oklch(85% 0.1 25)',
+                marginBottom: 6,
+              }}
+            >
+              {pickedFull.error}
+            </div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
-              <div style={{ fontWeight: 700, marginBottom: 3, color: 'oklch(80% 0.04 65)' }}>request</div>
+              <div style={{ fontWeight: 700, marginBottom: 3, color: 'oklch(80% 0.04 65)' }}>
+                request
+              </div>
               <pre style={preStyle}>{JSON.stringify(pickedFull.request, null, 2)}</pre>
             </div>
             <div>
@@ -380,11 +448,22 @@ function eventColor(k: AiEvent['kind']): string {
 }
 
 const btn: React.CSSProperties = {
-  background: 'oklch(28% 0.02 65)', color: '#fff', border: '1px solid oklch(40% 0.02 65)',
-  borderRadius: 4, padding: '3px 8px', fontSize: 11, fontFamily: 'inherit',
+  background: 'oklch(28% 0.02 65)',
+  color: '#fff',
+  border: '1px solid oklch(40% 0.02 65)',
+  borderRadius: 4,
+  padding: '3px 8px',
+  fontSize: 11,
+  fontFamily: 'inherit',
   cursor: 'pointer',
 };
 const preStyle: React.CSSProperties = {
-  background: 'oklch(10% 0.02 65)', padding: 6, borderRadius: 4,
-  overflow: 'auto', maxHeight: 180, fontSize: 10, lineHeight: 1.4, margin: 0,
+  background: 'oklch(10% 0.02 65)',
+  padding: 6,
+  borderRadius: 4,
+  overflow: 'auto',
+  maxHeight: 180,
+  fontSize: 10,
+  lineHeight: 1.4,
+  margin: 0,
 };

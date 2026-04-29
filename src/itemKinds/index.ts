@@ -98,43 +98,101 @@ export interface ItemKindDef {
 
 // ─── flight ─────────────────────────────────────────────────────────────────
 
-const FlightAttrs = z.object({
-  airline: z.string().max(100).optional(),
-  flight_number: z.string().max(20).optional(),
-  cabin: z.enum(['economy', 'premium_economy', 'business', 'first']).optional(),
-  departure_airport: z.string().max(4).optional(),  // IATA
-  departure_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  departure_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  arrival_airport: z.string().max(4).optional(),
-  arrival_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  arrival_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  seat: z.string().max(10).optional(),
-  // confirmation kept in schema for backcompat (old data), but the base
-  // item confirmation column is canonical — see derive() below.
-  confirmation: z.string().max(40).optional(),
-  booked_under_name: z.string().max(120).optional(),
-}).partial();
+const FlightAttrs = z
+  .object({
+    /** Discriminator. 'flight' (default) uses IATA airport codes for tz
+     * derivation; 'train' / 'drive' use free-text city/station strings
+     * since IATA doesn't apply. */
+    transit_mode: z.enum(['flight', 'train', 'drive']).optional(),
+    airline: z.string().max(100).optional(),
+    flight_number: z.string().max(20).optional(),
+    cabin: z.enum(['economy', 'premium_economy', 'business', 'first']).optional(),
+    departure_airport: z.string().max(4).optional(), // IATA (flight only)
+    departure_place: z.string().max(120).optional(), // station / address (train, drive)
+    departure_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    departure_time: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    arrival_airport: z.string().max(4).optional(),
+    arrival_place: z.string().max(120).optional(),
+    arrival_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    arrival_time: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    seat: z.string().max(10).optional(),
+    // confirmation kept in schema for backcompat (old data), but the base
+    // item confirmation column is canonical — see derive() below.
+    confirmation: z.string().max(40).optional(),
+    booked_under_name: z.string().max(120).optional(),
+  })
+  .partial();
 
 const flight: ItemKindDef = {
   kind: 'transit',
   subtype: 'flight',
-  label: 'Flight',
+  label: 'Transit',
   ownsTime: true,
   derivesTitle: true,
   derivesLocation: true,
-  hint: 'Time zones auto-fill from IATA codes. Departure date/time drive the item\'s position on the timeline.',
+  hint: 'Departure date/time drive the timeline position. For flights, time zones auto-fill from IATA codes.',
   fields: [
-    { name: 'airline',           label: 'Airline',           type: 'text',   placeholder: 'e.g. ANA, Delta' },
-    { name: 'flight_number',     label: 'Flight number',     type: 'text',   placeholder: 'e.g. NH109' },
-    { name: 'cabin',             label: 'Cabin',             type: 'select', options: ['economy', 'premium_economy', 'business', 'first'] },
-    { name: 'departure_airport', label: 'Departure airport', type: 'iata',   placeholder: 'e.g. LAX' },
-    { name: 'departure_date',    label: 'Departure date',    type: 'date' },
-    { name: 'departure_time',    label: 'Departure time',    type: 'time' },
-    { name: 'arrival_airport',   label: 'Arrival airport',   type: 'iata',   placeholder: 'e.g. NRT' },
-    { name: 'arrival_date',      label: 'Arrival date',      type: 'date' },
-    { name: 'arrival_time',      label: 'Arrival time',      type: 'time' },
-    { name: 'seat',              label: 'Seat',              type: 'text',   placeholder: 'e.g. 32A' },
-    { name: 'booked_under_name', label: 'Booked under',      type: 'text',   placeholder: "Whose name's on the ticket" },
+    { name: 'transit_mode', label: 'Mode', type: 'select', options: ['flight', 'train', 'drive'] },
+    {
+      name: 'airline',
+      label: 'Operator',
+      type: 'text',
+      placeholder: 'Airline / rail line / rental co.',
+    },
+    { name: 'flight_number', label: 'Number', type: 'text', placeholder: 'Flight or train number' },
+    {
+      name: 'cabin',
+      label: 'Cabin',
+      type: 'select',
+      options: ['economy', 'premium_economy', 'business', 'first'],
+    },
+    {
+      name: 'departure_airport',
+      label: 'From (IATA)',
+      type: 'iata',
+      placeholder: 'flight only — e.g. LAX',
+    },
+    {
+      name: 'departure_place',
+      label: 'From',
+      type: 'text',
+      placeholder: 'station / address (train + drive)',
+    },
+    { name: 'departure_date', label: 'Departure date', type: 'date' },
+    { name: 'departure_time', label: 'Departure time', type: 'time' },
+    {
+      name: 'arrival_airport',
+      label: 'To (IATA)',
+      type: 'iata',
+      placeholder: 'flight only — e.g. NRT',
+    },
+    {
+      name: 'arrival_place',
+      label: 'To',
+      type: 'text',
+      placeholder: 'station / address (train + drive)',
+    },
+    { name: 'arrival_date', label: 'Arrival date', type: 'date' },
+    { name: 'arrival_time', label: 'Arrival time', type: 'time' },
+    { name: 'seat', label: 'Seat', type: 'text', placeholder: 'e.g. 32A' },
+    {
+      name: 'booked_under_name',
+      label: 'Booked under',
+      type: 'text',
+      placeholder: "Whose name's on the ticket",
+    },
     // Confirmation # is the base item field — shown in top-level form, not duplicated here.
   ],
   attrs: FlightAttrs,
@@ -149,7 +207,7 @@ const flight: ItemKindDef = {
     if (formatted) {
       // formatFlightNumber returns "XX 1234" — split off the prefix when
       // it matches the (now-normalized) airline so we don't double-store.
-      const m = formatted.match(/^([A-Z0-9]{2,3})\s+(\d+)$/i);
+      const m = /^([A-Z0-9]{2,3})\s+(\d+)$/i.exec(formatted);
       if (m) {
         a.airline = a.airline ?? m[1];
         a.flight_number = m[2];
@@ -160,21 +218,35 @@ const flight: ItemKindDef = {
     // Uppercase IATA airport codes.
     if (a.departure_airport) a.departure_airport = a.departure_airport.toUpperCase();
     if (a.arrival_airport) a.arrival_airport = a.arrival_airport.toUpperCase();
-    return a as Record<string, unknown>;
+    return a;
   },
   derive(attrs) {
     const a = attrs as z.infer<typeof FlightAttrs>;
-    const tz = tzForIata(a.departure_airport ?? null);
-    const end_tz = tzForIata(a.arrival_airport ?? null);
-    const route = a.departure_airport && a.arrival_airport
-      ? `${a.departure_airport} → ${a.arrival_airport}`
-      : null;
-    const flightCode = formatFlightNumber(a.airline ?? null, a.flight_number ?? null);
-    const title = route
-      ? (flightCode ? `${flightCode} · ${route}` : route)
-      : (flightCode || null);
+    const mode = a.transit_mode ?? 'flight';
+    // For flights, prefer IATA codes for tz + display. For trains/drives,
+    // use the free-text place fields since IATA doesn't apply.
+    const isFlight = mode === 'flight';
+    const tz = isFlight ? tzForIata(a.departure_airport ?? null) : null;
+    const end_tz = isFlight ? tzForIata(a.arrival_airport ?? null) : null;
+    const fromLabel =
+      (isFlight ? a.departure_airport : a.departure_place) ?? a.departure_place ?? null;
+    const toLabel = (isFlight ? a.arrival_airport : a.arrival_place) ?? a.arrival_place ?? null;
+    const route = fromLabel && toLabel ? `${fromLabel} → ${toLabel}` : null;
+    let title: string | null;
+    if (isFlight) {
+      const flightCode = formatFlightNumber(a.airline ?? null, a.flight_number ?? null);
+      if (route && flightCode) title = `${flightCode} · ${route}`;
+      else if (route) title = route;
+      else title = flightCode || null;
+    } else {
+      const operator = a.airline?.trim() || (mode === 'train' ? 'Train' : 'Drive');
+      const number = a.flight_number?.trim();
+      const head = number ? `${operator} ${number}` : operator;
+      title = route ? `${head} · ${route}` : head;
+    }
     return {
-      tz, end_tz,
+      tz,
+      end_tz,
       day_date: a.departure_date ?? null,
       start_time: a.departure_time ?? null,
       end_time: a.arrival_time ?? null,
@@ -188,17 +260,22 @@ const flight: ItemKindDef = {
 
 // ─── lodging (checkin / checkout) ───────────────────────────────────────────
 
-const LodgingAttrs = z.object({
-  property_name: z.string().max(200).optional(),
-  address: z.string().max(300).optional(),
-  room_type: z.string().max(100).optional(),
-  party_size: z.number().int().min(1).max(20).optional(),
-  policy_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  confirmation: z.string().max(40).optional(),
-  rate: z.string().max(40).optional(),  // free text — currencies + caveats
-  cancellation: z.string().max(200).optional(),
-  booked_under_name: z.string().max(120).optional(),
-}).partial();
+const LodgingAttrs = z
+  .object({
+    property_name: z.string().max(200).optional(),
+    address: z.string().max(300).optional(),
+    room_type: z.string().max(100).optional(),
+    party_size: z.number().int().min(1).max(20).optional(),
+    policy_time: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    confirmation: z.string().max(40).optional(),
+    rate: z.string().max(40).optional(), // free text — currencies + caveats
+    cancellation: z.string().max(200).optional(),
+    booked_under_name: z.string().max(120).optional(),
+  })
+  .partial();
 
 function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string): ItemKindDef {
   return {
@@ -212,15 +289,34 @@ function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string)
     derivesTitle: true,
     derivesLocation: true,
     fields: [
-      { name: 'property_name', label: 'Property',         type: 'text', placeholder: 'Hotel / rental name' },
-      { name: 'address',       label: 'Address',          type: 'text' },
-      { name: 'room_type',     label: 'Room',             type: 'text', placeholder: 'e.g. King with view' },
-      { name: 'party_size',    label: 'Party size',       type: 'number' },
-      { name: 'policy_time',   label: kind === 'checkin' ? 'Earliest check-in' : 'Latest check-out', type: 'time' },
-      { name: 'rate',              label: 'Nightly rate',     type: 'text' },
+      {
+        name: 'property_name',
+        label: 'Property',
+        type: 'text',
+        placeholder: 'Hotel / rental name',
+      },
+      { name: 'address', label: 'Address', type: 'text' },
+      { name: 'room_type', label: 'Room', type: 'text', placeholder: 'e.g. King with view' },
+      { name: 'party_size', label: 'Party size', type: 'number' },
+      {
+        name: 'policy_time',
+        label: kind === 'checkin' ? 'Earliest check-in' : 'Latest check-out',
+        type: 'time',
+      },
+      { name: 'rate', label: 'Nightly rate', type: 'text' },
       // Confirmation # is the base item field — shown in top-level form, not duplicated here.
-      { name: 'booked_under_name', label: 'Booked under',     type: 'text', placeholder: "Whose name's on the reservation" },
-      { name: 'cancellation',      label: 'Cancellation',     type: 'text', placeholder: 'e.g. Free until 48h before' },
+      {
+        name: 'booked_under_name',
+        label: 'Booked under',
+        type: 'text',
+        placeholder: "Whose name's on the reservation",
+      },
+      {
+        name: 'cancellation',
+        label: 'Cancellation',
+        type: 'text',
+        placeholder: 'e.g. Free until 48h before',
+      },
     ],
     attrs: LodgingAttrs,
     derive(attrs) {
@@ -238,21 +334,33 @@ function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string)
     },
   };
 }
-const checkin = buildLodging('checkin', 'Check-in', 'Check-in time sets the earliest arrival on the timeline.');
-const checkout = buildLodging('checkout', 'Check-out', 'Check-out time sets the latest departure on the timeline.');
+const checkin = buildLodging(
+  'checkin',
+  'Check-in',
+  'Check-in time sets the earliest arrival on the timeline.',
+);
+const checkout = buildLodging(
+  'checkout',
+  'Check-out',
+  'Check-out time sets the latest departure on the timeline.',
+);
 
 // ─── meal ───────────────────────────────────────────────────────────────────
 
-const MealAttrs = z.object({
-  meal_type: z.enum(['breakfast', 'brunch', 'lunch', 'dinner', 'late-night', 'snack', 'drinks']).optional(),
-  venue_name: z.string().max(200).optional(),
-  address: z.string().max(300).optional(),
-  cuisine: z.string().max(60).optional(),
-  party_size: z.number().int().min(1).max(50).optional(),
-  price_level: z.enum(['$', '$$', '$$$', '$$$$']).optional(),
-  dress_code: z.string().max(60).optional(),
-  booked_under_name: z.string().max(120).optional(),
-}).partial();
+const MealAttrs = z
+  .object({
+    meal_type: z
+      .enum(['breakfast', 'brunch', 'lunch', 'dinner', 'late-night', 'snack', 'drinks'])
+      .optional(),
+    venue_name: z.string().max(200).optional(),
+    address: z.string().max(300).optional(),
+    cuisine: z.string().max(60).optional(),
+    party_size: z.number().int().min(1).max(50).optional(),
+    price_level: z.enum(['$', '$$', '$$$', '$$$$']).optional(),
+    dress_code: z.string().max(60).optional(),
+    booked_under_name: z.string().max(120).optional(),
+  })
+  .partial();
 
 const meal: ItemKindDef = {
   kind: 'meal',
@@ -262,22 +370,30 @@ const meal: ItemKindDef = {
   derivesLocation: true,
   hint: 'Breakfast, lunch, dinner, drinks. Time + reservation are both optional.',
   fields: [
-    { name: 'meal_type',   label: 'Which meal',   type: 'select', options: ['breakfast', 'brunch', 'lunch', 'dinner', 'late-night', 'snack', 'drinks'] },
-    { name: 'venue_name',  label: 'Venue',        type: 'text', placeholder: 'Optional' },
-    { name: 'address',     label: 'Address',      type: 'text' },
-    { name: 'cuisine',     label: 'Cuisine',      type: 'text', placeholder: 'e.g. Italian, ramen' },
-    { name: 'party_size',  label: 'Party of',     type: 'number' },
-    { name: 'price_level',       label: 'Price',        type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
-    { name: 'dress_code',        label: 'Dress code',   type: 'text' },
-    { name: 'booked_under_name', label: 'Booked under', type: 'text', placeholder: "Whose name's on the reservation" },
+    {
+      name: 'meal_type',
+      label: 'Which meal',
+      type: 'select',
+      options: ['breakfast', 'brunch', 'lunch', 'dinner', 'late-night', 'snack', 'drinks'],
+    },
+    { name: 'venue_name', label: 'Venue', type: 'text', placeholder: 'Optional' },
+    { name: 'address', label: 'Address', type: 'text' },
+    { name: 'cuisine', label: 'Cuisine', type: 'text', placeholder: 'e.g. Italian, ramen' },
+    { name: 'party_size', label: 'Party of', type: 'number' },
+    { name: 'price_level', label: 'Price', type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
+    { name: 'dress_code', label: 'Dress code', type: 'text' },
+    {
+      name: 'booked_under_name',
+      label: 'Booked under',
+      type: 'text',
+      placeholder: "Whose name's on the reservation",
+    },
     // Confirmation # is the base item field — set it if you have a reservation, leave blank otherwise.
   ],
   attrs: MealAttrs,
   derive(attrs) {
     const a = attrs as z.infer<typeof MealAttrs>;
-    const mealLabel = a.meal_type
-      ? a.meal_type[0].toUpperCase() + a.meal_type.slice(1)
-      : 'Meal';
+    const mealLabel = a.meal_type ? a.meal_type[0].toUpperCase() + a.meal_type.slice(1) : 'Meal';
     return {
       title: a.venue_name ? `${mealLabel} · ${a.venue_name}` : mealLabel,
       location: a.venue_name ?? a.address ?? null,
@@ -287,19 +403,27 @@ const meal: ItemKindDef = {
 
 // ─── reservation (tour / show / spa / non-meal booking) ─────────────────────
 
-const ReservationAttrs = z.object({
-  venue_name: z.string().max(200).optional(),
-  address: z.string().max(300).optional(),
-  category: z.string().max(60).optional(),  // cuisine, tour type, etc.
-  party_size: z.number().int().min(1).max(50).optional(),
-  // reservation_number kept in schema for backcompat — base confirmation column is canonical.
-  reservation_number: z.string().max(40).optional(),
-  opens_at: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  closes_at: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  price_level: z.enum(['$', '$$', '$$$', '$$$$']).optional(),
-  dress_code: z.string().max(60).optional(),
-  booked_under_name: z.string().max(120).optional(),
-}).partial();
+const ReservationAttrs = z
+  .object({
+    venue_name: z.string().max(200).optional(),
+    address: z.string().max(300).optional(),
+    category: z.string().max(60).optional(), // cuisine, tour type, etc.
+    party_size: z.number().int().min(1).max(50).optional(),
+    // reservation_number kept in schema for backcompat — base confirmation column is canonical.
+    reservation_number: z.string().max(40).optional(),
+    opens_at: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    closes_at: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    price_level: z.enum(['$', '$$', '$$$', '$$$$']).optional(),
+    dress_code: z.string().max(60).optional(),
+    booked_under_name: z.string().max(120).optional(),
+  })
+  .partial();
 
 const reservation: ItemKindDef = {
   kind: 'reservation',
@@ -308,15 +432,25 @@ const reservation: ItemKindDef = {
   derivesLocation: true,
   hint: 'Tours, shows, spa, non-meal bookings. For meals, use the Meal kind instead.',
   fields: [
-    { name: 'venue_name',  label: 'Venue',        type: 'text' },
-    { name: 'address',     label: 'Address',      type: 'text' },
-    { name: 'category',    label: 'Category',     type: 'text', placeholder: 'e.g. Italian, walking tour' },
-    { name: 'party_size',  label: 'Party of',     type: 'number' },
-    { name: 'opens_at',    label: 'Venue opens',  type: 'time' },
-    { name: 'closes_at',   label: 'Venue closes', type: 'time' },
-    { name: 'price_level',       label: 'Price',        type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
-    { name: 'dress_code',        label: 'Dress code',   type: 'text' },
-    { name: 'booked_under_name', label: 'Booked under', type: 'text', placeholder: "Whose name's on the reservation" },
+    { name: 'venue_name', label: 'Venue', type: 'text' },
+    { name: 'address', label: 'Address', type: 'text' },
+    {
+      name: 'category',
+      label: 'Category',
+      type: 'text',
+      placeholder: 'e.g. Italian, walking tour',
+    },
+    { name: 'party_size', label: 'Party of', type: 'number' },
+    { name: 'opens_at', label: 'Venue opens', type: 'time' },
+    { name: 'closes_at', label: 'Venue closes', type: 'time' },
+    { name: 'price_level', label: 'Price', type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
+    { name: 'dress_code', label: 'Dress code', type: 'text' },
+    {
+      name: 'booked_under_name',
+      label: 'Booked under',
+      type: 'text',
+      placeholder: "Whose name's on the reservation",
+    },
     // Confirmation # is the base item field — shown in top-level form, not duplicated here.
   ],
   attrs: ReservationAttrs,
@@ -334,15 +468,23 @@ const reservation: ItemKindDef = {
 
 // ─── activity ───────────────────────────────────────────────────────────────
 
-const ActivityAttrs = z.object({
-  venue_name: z.string().max(200).optional(),
-  address: z.string().max(300).optional(),
-  opens_at: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  closes_at: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  ticket_required: z.boolean().optional(),
-  price: z.string().max(40).optional(),
-  duration_min: z.number().int().min(1).max(1440).optional(),
-}).partial();
+const ActivityAttrs = z
+  .object({
+    venue_name: z.string().max(200).optional(),
+    address: z.string().max(300).optional(),
+    opens_at: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    closes_at: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    ticket_required: z.boolean().optional(),
+    price: z.string().max(40).optional(),
+    duration_min: z.number().int().min(1).max(1440).optional(),
+  })
+  .partial();
 
 const activity: ItemKindDef = {
   kind: 'activity',
@@ -351,13 +493,13 @@ const activity: ItemKindDef = {
   derivesLocation: true,
   hint: 'Duration auto-fills end time. Opens/Closes are venue hours, not your visit time.',
   fields: [
-    { name: 'venue_name',      label: 'Place',           type: 'text' },
-    { name: 'address',         label: 'Address',         type: 'text' },
-    { name: 'opens_at',        label: 'Venue opens',     type: 'time' },
-    { name: 'closes_at',       label: 'Venue closes',    type: 'time' },
+    { name: 'venue_name', label: 'Place', type: 'text' },
+    { name: 'address', label: 'Address', type: 'text' },
+    { name: 'opens_at', label: 'Venue opens', type: 'time' },
+    { name: 'closes_at', label: 'Venue closes', type: 'time' },
     { name: 'ticket_required', label: 'Ticket required', type: 'select', options: ['no', 'yes'] },
-    { name: 'price',           label: 'Price',           type: 'text' },
-    { name: 'duration_min',    label: 'Duration (min)',  type: 'number', placeholder: 'e.g. 90' },
+    { name: 'price', label: 'Price', type: 'text' },
+    { name: 'duration_min', label: 'Duration (min)', type: 'number', placeholder: 'e.g. 90' },
   ],
   attrs: ActivityAttrs,
   derive(attrs, base) {
@@ -382,17 +524,25 @@ const activity: ItemKindDef = {
 
 // ─── package (multi-day all-inclusive: tour, cruise, retreat, resort) ───────
 
-const PackageAttrs = z.object({
-  operator: z.string().max(200).optional(),  // tour company / resort / cruise line
-  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  includes_lodging: z.enum(['yes', 'no']).optional(),
-  includes_meals: z.enum(['yes', 'no', 'some']).optional(),
-  meal_plan: z.string().max(200).optional(),  // free-form: "All meals included", "Breakfast only", etc.
-  price: z.string().max(40).optional(),
-  cancellation: z.string().max(200).optional(),
-  booked_under_name: z.string().max(120).optional(),
-}).partial();
+const PackageAttrs = z
+  .object({
+    operator: z.string().max(200).optional(), // tour company / resort / cruise line
+    end_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    end_time: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    includes_lodging: z.enum(['yes', 'no']).optional(),
+    includes_meals: z.enum(['yes', 'no', 'some']).optional(),
+    meal_plan: z.string().max(200).optional(), // free-form: "All meals included", "Breakfast only", etc.
+    price: z.string().max(40).optional(),
+    cancellation: z.string().max(200).optional(),
+    booked_under_name: z.string().max(120).optional(),
+  })
+  .partial();
 
 const packageDef: ItemKindDef = {
   kind: 'package',
@@ -401,15 +551,40 @@ const packageDef: ItemKindDef = {
   derivesLocation: true,
   hint: 'Tours, cruises, all-inclusive resorts, retreats. Spans multiple days; can include lodging and meals.',
   fields: [
-    { name: 'operator',         label: 'Operator',          type: 'text',   placeholder: 'Tour company / resort / cruise line' },
-    { name: 'end_date',         label: 'End date',          type: 'date' },
-    { name: 'end_time',         label: 'End time',          type: 'time' },
-    { name: 'includes_lodging', label: 'Lodging included?', type: 'select', options: ['yes', 'no'] },
-    { name: 'includes_meals',   label: 'Meals included?',   type: 'select', options: ['yes', 'no', 'some'] },
-    { name: 'meal_plan',        label: 'Meal plan',         type: 'text',   placeholder: 'e.g. All meals · Breakfast only' },
-    { name: 'price',             label: 'Price',             type: 'text' },
-    { name: 'booked_under_name', label: 'Booked under',      type: 'text', placeholder: "Whose name's on the booking" },
-    { name: 'cancellation',      label: 'Cancellation',      type: 'text' },
+    {
+      name: 'operator',
+      label: 'Operator',
+      type: 'text',
+      placeholder: 'Tour company / resort / cruise line',
+    },
+    { name: 'end_date', label: 'End date', type: 'date' },
+    { name: 'end_time', label: 'End time', type: 'time' },
+    {
+      name: 'includes_lodging',
+      label: 'Lodging included?',
+      type: 'select',
+      options: ['yes', 'no'],
+    },
+    {
+      name: 'includes_meals',
+      label: 'Meals included?',
+      type: 'select',
+      options: ['yes', 'no', 'some'],
+    },
+    {
+      name: 'meal_plan',
+      label: 'Meal plan',
+      type: 'text',
+      placeholder: 'e.g. All meals · Breakfast only',
+    },
+    { name: 'price', label: 'Price', type: 'text' },
+    {
+      name: 'booked_under_name',
+      label: 'Booked under',
+      type: 'text',
+      placeholder: "Whose name's on the booking",
+    },
+    { name: 'cancellation', label: 'Cancellation', type: 'text' },
   ],
   attrs: PackageAttrs,
   derive(attrs) {
@@ -424,25 +599,37 @@ const packageDef: ItemKindDef = {
 // ─── option / note (no extra fields beyond the common base) ─────────────────
 
 const optionDef: ItemKindDef = {
-  kind: 'option', subtype: 'option', label: 'Option',
+  kind: 'option',
+  subtype: 'option',
+  label: 'Option',
   hint: 'A "we could do this" idea, untimed and unbooked.',
-  fields: [], attrs: z.object({}).strict(),
+  fields: [],
+  attrs: z.object({}).strict(),
 };
 const noteDef: ItemKindDef = {
-  kind: 'note', subtype: 'note', label: 'Note',
+  kind: 'note',
+  subtype: 'note',
+  label: 'Note',
   hint: 'A reminder, journal entry, or context for the day.',
-  fields: [], attrs: z.object({}).strict(),
+  fields: [],
+  attrs: z.object({}).strict(),
 };
 
 // ─── registry ───────────────────────────────────────────────────────────────
 
 export const KINDS: ItemKindDef[] = [
-  flight, checkin, checkout, meal, reservation, activity, packageDef, optionDef, noteDef,
+  flight,
+  checkin,
+  checkout,
+  meal,
+  reservation,
+  activity,
+  packageDef,
+  optionDef,
+  noteDef,
 ];
 
-const BY_KIND: Record<string, ItemKindDef> = Object.fromEntries(
-  KINDS.map((k) => [k.kind, k]),
-);
+const BY_KIND: Record<string, ItemKindDef> = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
 
 export function defForKind(kind: ItemKind): ItemKindDef {
   return BY_KIND[kind] ?? noteDef;

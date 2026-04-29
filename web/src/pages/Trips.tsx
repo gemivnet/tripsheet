@@ -3,7 +3,11 @@ import { api, type ReferenceDoc, type Trip } from '../api.js';
 import { inputStyle, labelStyle } from '../components/shared.js';
 import { UploadDrawer } from '../components/RightPane.js';
 
-export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => void }): JSX.Element {
+export function TripsPage({
+  onOpen,
+}: {
+  onOpen: (idOrSlug: number | string) => void;
+}): JSX.Element {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -47,10 +51,14 @@ export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => v
 
   return (
     <div className="trips-page">
-      <div style={{
-        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-        marginBottom: 20,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          marginBottom: 20,
+        }}
+      >
         <h2>Your trips</h2>
         {!creating && trips.length > 0 && (
           <button className="primary" onClick={() => setCreating(true)} style={primaryBtnStyle}>
@@ -60,13 +68,32 @@ export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => v
       </div>
 
       {loading ? (
-        <div className="empty" style={emptyStyle}>Loading…</div>
+        <div className="empty" style={emptyStyle}>
+          Loading…
+        </div>
       ) : trips.length === 0 && !creating ? (
-        <div className="empty" style={{ ...emptyStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '48px 24px' }}>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600,
-            letterSpacing: '-0.02em', color: 'var(--text)',
-          }}>No trips yet.</div>
+        <div
+          className="empty"
+          style={{
+            ...emptyStyle,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 14,
+            padding: '48px 24px',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              color: 'var(--text)',
+            }}
+          >
+            No trips yet.
+          </div>
           <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             Start with a name, dates, and where you're headed.
           </div>
@@ -77,7 +104,12 @@ export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => v
       ) : (
         <div className="trips-list">
           {trips.map((t) => (
-            <TripCard key={t.id} trip={t} onOpen={() => onOpen(t.slug ?? t.id)} onDeleted={refreshTrips} />
+            <TripCard
+              key={t.id}
+              trip={t}
+              onOpen={() => onOpen(t.slug ?? t.id)}
+              onDeleted={refreshTrips}
+            />
           ))}
         </div>
       )}
@@ -96,14 +128,22 @@ export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => v
       )}
 
       <div style={{ marginTop: 48 }}>
-        <div style={{
-          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-          marginBottom: 16,
-        }}>
-          <h2 style={{
-            fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700,
-            letterSpacing: '-0.02em',
-          }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            marginBottom: 16,
+          }}
+        >
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+            }}
+          >
             Reference library
           </h2>
           <button onClick={() => setUploadOpen(true)} style={primaryBtnStyle}>
@@ -113,8 +153,8 @@ export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => v
 
         {docs.length === 0 ? (
           <div style={{ ...emptyStyle, padding: '28px 24px', fontSize: 13 }}>
-            Upload past itineraries or travel journals — the AI will use them as priors
-            for suggestions on every trip.
+            Upload past itineraries or travel journals — the AI will use them as priors for
+            suggestions on every trip.
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
@@ -140,36 +180,70 @@ export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => v
 }
 
 function TripCard({
-  trip, onOpen, onDeleted,
-}: { trip: Trip; onOpen: () => void; onDeleted: () => Promise<void> }): JSX.Element {
+  trip,
+  onOpen,
+  onDeleted,
+}: {
+  trip: Trip;
+  onOpen: () => void;
+  onDeleted: () => Promise<void>;
+}): JSX.Element {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   return (
-    <div className="trip-card" onClick={() => !confirming && onOpen()} style={{ position: 'relative' }}>
+    <div
+      className="trip-card"
+      onClick={() => !confirming && onOpen()}
+      style={{ position: 'relative' }}
+    >
       <h3>{trip.name}</h3>
       <div className="meta">
         {trip.start_date} → {trip.end_date}
         {trip.destination ? ` · ${trip.destination}` : ''}
       </div>
       <button
-        title={confirming ? 'Click again to confirm — trip & all items will be deleted' : 'Delete this trip'}
+        title={
+          confirming
+            ? 'Click again to confirm — trip & all items will be deleted'
+            : 'Delete this trip'
+        }
         onClick={async (e) => {
           e.stopPropagation();
-          if (!confirming) { setConfirming(true); setTimeout(() => setConfirming(false), 3000); return; }
+          if (!confirming) {
+            setConfirming(true);
+            setTimeout(() => setConfirming(false), 3000);
+            return;
+          }
           setBusy(true);
-          try { await api.deleteTrip(trip.id); await onDeleted(); }
-          finally { setBusy(false); setConfirming(false); }
+          try {
+            await api.deleteTrip(trip.id);
+            await onDeleted();
+          } finally {
+            setBusy(false);
+            setConfirming(false);
+          }
         }}
         disabled={busy}
         style={{
-          position: 'absolute', top: 8, right: 8,
+          position: 'absolute',
+          top: 8,
+          right: 8,
           background: confirming ? 'oklch(58% 0.16 25)' : 'transparent',
           color: confirming ? '#fff' : 'var(--text-muted)',
-          border: '1.5px solid', borderColor: confirming ? 'oklch(58% 0.16 25)' : 'var(--border)',
-          borderRadius: 6, width: 22, height: 22, padding: 0,
-          fontSize: 13, lineHeight: 1, cursor: 'pointer', fontWeight: 600,
+          border: '1.5px solid',
+          borderColor: confirming ? 'oklch(58% 0.16 25)' : 'var(--border)',
+          borderRadius: 6,
+          width: 22,
+          height: 22,
+          padding: 0,
+          fontSize: 13,
+          lineHeight: 1,
+          cursor: 'pointer',
+          fontWeight: 600,
         }}
-      >×</button>
+      >
+        ×
+      </button>
     </div>
   );
 }
@@ -195,8 +269,13 @@ function DocRow({
       return;
     }
     setBusyDel(true);
-    try { await api.deleteDoc(doc.id); await onReparsed(); }
-    finally { setBusyDel(false); setConfirmDel(false); }
+    try {
+      await api.deleteDoc(doc.id);
+      await onReparsed();
+    } finally {
+      setBusyDel(false);
+      setConfirmDel(false);
+    }
   };
 
   const reparse = async (): Promise<void> => {
@@ -213,17 +292,31 @@ function DocRow({
   };
 
   return (
-    <div style={{
-      background: 'var(--surface)', padding: '12px 16px', borderRadius: 10,
-      border: '1.5px solid var(--border)',
-      display: 'flex', alignItems: 'center', gap: 12,
-    }}>
+    <div
+      style={{
+        background: 'var(--surface)',
+        padding: '12px 16px',
+        borderRadius: 10,
+        border: '1.5px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+      }}
+    >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600,
-          letterSpacing: '-0.01em',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{doc.title}</div>
+        <div
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 17,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {doc.title}
+        </div>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
           {kindLabel(doc.kind)} · {new Date(doc.uploaded_at).toLocaleDateString()}
           {doc.parsed_summary ? ` · ${truncate(doc.parsed_summary, 90)}` : ''}
@@ -232,9 +325,15 @@ function DocRow({
           <button
             onClick={() => onOpenTrip(doc.derived_trip_id!)}
             style={{
-              marginTop: 6, background: 'none', border: 'none', padding: 0,
-              color: 'var(--accent)', fontSize: 12, fontWeight: 600,
-              cursor: 'pointer', textAlign: 'left',
+              marginTop: 6,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'var(--accent)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              textAlign: 'left',
             }}
           >
             → Open the trip built from this PDF
@@ -253,9 +352,14 @@ function DocRow({
           disabled={reparsing}
           title={doc.parse_status === 'complete' ? 'Reparse this PDF' : 'Retry parsing'}
           style={{
-            background: 'none', border: '1.5px solid var(--border)',
-            color: 'var(--text-muted)', fontSize: 11, fontWeight: 600,
-            padding: '5px 10px', borderRadius: 6, cursor: reparsing ? 'default' : 'pointer',
+            background: 'none',
+            border: '1.5px solid var(--border)',
+            color: 'var(--text-muted)',
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '5px 10px',
+            borderRadius: 6,
+            cursor: reparsing ? 'default' : 'pointer',
             flexShrink: 0,
           }}
         >
@@ -265,18 +369,29 @@ function DocRow({
       <button
         onClick={() => void onDelete()}
         disabled={busyDel}
-        title={confirmDel
-          ? 'Click again to confirm — PDF, parsed items, and any pending suggestions will be removed'
-          : 'Delete this PDF'}
+        title={
+          confirmDel
+            ? 'Click again to confirm — PDF, parsed items, and any pending suggestions will be removed'
+            : 'Delete this PDF'
+        }
         style={{
           background: confirmDel ? 'oklch(58% 0.16 25)' : 'transparent',
           color: confirmDel ? '#fff' : 'var(--text-muted)',
-          border: '1.5px solid', borderColor: confirmDel ? 'oklch(58% 0.16 25)' : 'var(--border)',
-          width: 26, height: 26, padding: 0, borderRadius: 6,
-          fontSize: 14, lineHeight: 1, cursor: busyDel ? 'default' : 'pointer',
-          flexShrink: 0, fontWeight: 600,
+          border: '1.5px solid',
+          borderColor: confirmDel ? 'oklch(58% 0.16 25)' : 'var(--border)',
+          width: 26,
+          height: 26,
+          padding: 0,
+          borderRadius: 6,
+          fontSize: 14,
+          lineHeight: 1,
+          cursor: busyDel ? 'default' : 'pointer',
+          flexShrink: 0,
+          fontWeight: 600,
         }}
-      >×</button>
+      >
+        ×
+      </button>
     </div>
   );
 }
@@ -289,16 +404,33 @@ function isStale(uploadedAt: string): boolean {
 
 function DocStatusBadge({ status }: { status: ReferenceDoc['parse_status'] }): JSX.Element {
   const style: React.CSSProperties = {
-    fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-    padding: '3px 8px', borderRadius: 6, flexShrink: 0,
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    padding: '3px 8px',
+    borderRadius: 6,
+    flexShrink: 0,
   };
   if (status === 'complete') {
-    return <span style={{ ...style, background: 'oklch(94% 0.05 150)', color: 'oklch(40% 0.12 150)' }}>parsed</span>;
+    return (
+      <span style={{ ...style, background: 'oklch(94% 0.05 150)', color: 'oklch(40% 0.12 150)' }}>
+        parsed
+      </span>
+    );
   }
   if (status === 'error') {
-    return <span style={{ ...style, background: 'oklch(93% 0.06 25)', color: 'oklch(45% 0.15 25)' }}>error</span>;
+    return (
+      <span style={{ ...style, background: 'oklch(93% 0.06 25)', color: 'oklch(45% 0.15 25)' }}>
+        error
+      </span>
+    );
   }
-  return <span style={{ ...style, background: 'oklch(94% 0.04 75)', color: 'oklch(50% 0.08 75)' }}>parsing…</span>;
+  return (
+    <span style={{ ...style, background: 'oklch(94% 0.04 75)', color: 'oklch(50% 0.08 75)' }}>
+      parsing…
+    </span>
+  );
 }
 
 function kindLabel(kind: string): string {
@@ -362,10 +494,15 @@ function NewTripForm({
         boxShadow: '0 4px 16px oklch(20% 0.04 65 / 0.04)',
       }}
     >
-      <div style={{
-        fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600,
-        letterSpacing: '-0.02em', marginBottom: 4,
-      }}>
+      <div
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 20,
+          fontWeight: 600,
+          letterSpacing: '-0.02em',
+          marginBottom: 4,
+        }}
+      >
         New trip
       </div>
 
@@ -427,10 +564,15 @@ function NewTripForm({
       </div>
 
       {error && (
-        <div style={{
-          color: 'oklch(52% 0.18 25)', fontSize: 13,
-          background: 'oklch(96% 0.04 25)', padding: '8px 12px', borderRadius: 6,
-        }}>
+        <div
+          style={{
+            color: 'oklch(52% 0.18 25)',
+            fontSize: 13,
+            background: 'oklch(96% 0.04 25)',
+            padding: '8px 12px',
+            borderRadius: 6,
+          }}
+        >
           {error}
         </div>
       )}

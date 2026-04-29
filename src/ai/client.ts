@@ -18,24 +18,38 @@ export function hasAnthropicKey(): boolean {
 // ─── runtime controls (mutated via dev toolbar) ──────────────────────────────
 
 let aiPaused = false;
-export function setAiPaused(paused: boolean): void { aiPaused = paused; }
-export function isAiPaused(): boolean { return aiPaused; }
+export function setAiPaused(paused: boolean): void {
+  aiPaused = paused;
+}
+export function isAiPaused(): boolean {
+  return aiPaused;
+}
 
 let modelOverride: string | null = null;
-export function setModelOverride(model: string | null): void { modelOverride = model; }
+export function setModelOverride(model: string | null): void {
+  modelOverride = model;
+}
 export function currentModel(): string {
   return modelOverride ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5';
 }
 
 let concurrencyLimit = 4;
-export function setConcurrency(n: number): void { concurrencyLimit = Math.max(1, Math.min(8, n)); }
-export function getConcurrency(): number { return concurrencyLimit; }
+export function setConcurrency(n: number): void {
+  concurrencyLimit = Math.max(1, Math.min(8, n));
+}
+export function getConcurrency(): number {
+  return concurrencyLimit;
+}
 
 const usage = { input_tokens: 0, output_tokens: 0, requests: 0 };
 export function getUsage(): { input_tokens: number; output_tokens: number; requests: number } {
   return { ...usage };
 }
-export function resetUsage(): void { usage.input_tokens = 0; usage.output_tokens = 0; usage.requests = 0; }
+export function resetUsage(): void {
+  usage.input_tokens = 0;
+  usage.output_tokens = 0;
+  usage.requests = 0;
+}
 
 // ─── live event log + queue inspector ────────────────────────────────────────
 
@@ -43,8 +57,15 @@ export interface AiEvent {
   id: number;
   at: string;
   kind:
-    | 'queued' | 'started' | 'streaming' | 'retry' | 'completed' | 'error'
-    | 'paused' | 'resumed' | 'log';
+    | 'queued'
+    | 'started'
+    | 'streaming'
+    | 'retry'
+    | 'completed'
+    | 'error'
+    | 'paused'
+    | 'resumed'
+    | 'log';
   caller: string;
   job_id?: string;
   message?: string;
@@ -151,10 +172,7 @@ let activeCount = 0;
  * in parallel; the rest queue. Streams the response so we can update
  * token counts live and report progress through the event log.
  */
-export async function callMessages<T>(
-  caller: string,
-  body: Record<string, unknown>,
-): Promise<T> {
+export async function callMessages<T>(caller: string, body: Record<string, unknown>): Promise<T> {
   if (aiPaused) {
     logEvent({ kind: 'paused', caller, message: 'AI paused — request rejected' });
     throw new Error('AI is paused (toggle off in the dev toolbar to re-enable).');
@@ -197,13 +215,16 @@ async function runTask(task: PendingTask): Promise<void> {
       job.status = 'running';
       job.started_at = new Date().toISOString();
       logEvent({
-        kind: 'started', caller: job.caller, job_id: job.id, attempt: job.attempt,
+        kind: 'started',
+        caller: job.caller,
+        job_id: job.id,
+        attempt: job.attempt,
       });
       inFlight.set(job.id, {
         id: inFlightId(job.id),
         at: job.started_at,
         caller: job.caller,
-        model: finalBody.model as string,
+        model: finalBody.model,
         request: redactRequest(finalBody),
         response: null,
         in_flight: true,
@@ -218,21 +239,23 @@ async function runTask(task: PendingTask): Promise<void> {
       recordExchange({
         at: new Date().toISOString(),
         caller: job.caller,
-        model: finalBody.model as string,
+        model: finalBody.model,
         input_tokens: r.usage?.input_tokens,
         output_tokens: r.usage?.output_tokens,
         request: redactRequest(finalBody),
         response,
       });
       logEvent({
-        kind: 'completed', caller: job.caller, job_id: job.id,
+        kind: 'completed',
+        caller: job.caller,
+        job_id: job.id,
         input_tokens: r.usage?.input_tokens,
         output_tokens: r.usage?.output_tokens,
       });
       resolve(response);
       return;
     } catch (e: unknown) {
-      const status = (e as { status?: number }).status;
+      const { status } = e as { status?: number };
       const retryable = status === 429 || status === 529 || status === 503;
       if (!retryable || job.attempt >= MAX) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -240,7 +263,7 @@ async function runTask(task: PendingTask): Promise<void> {
         recordExchange({
           at: new Date().toISOString(),
           caller: job.caller,
-          model: finalBody.model as string,
+          model: finalBody.model,
           request: redactRequest(finalBody),
           response: null,
           error: msg,
@@ -252,11 +275,15 @@ async function runTask(task: PendingTask): Promise<void> {
       const headerWait = Number(
         (e as { headers?: Record<string, string> }).headers?.['retry-after'],
       );
-      const backoffMs = Number.isFinite(headerWait) && headerWait > 0
-        ? headerWait * 1000
-        : Math.min(32_000, 500 * 2 ** (job.attempt - 1)) + Math.random() * 250;
+      const backoffMs =
+        Number.isFinite(headerWait) && headerWait > 0
+          ? headerWait * 1000
+          : Math.min(32_000, 500 * 2 ** (job.attempt - 1)) + Math.random() * 250;
       logEvent({
-        kind: 'retry', caller: job.caller, job_id: job.id, attempt: job.attempt,
+        kind: 'retry',
+        caller: job.caller,
+        job_id: job.id,
+        attempt: job.attempt,
         delay_ms: Math.round(backoffMs),
         message: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200),
       });
@@ -276,10 +303,7 @@ async function runTask(task: PendingTask): Promise<void> {
  * Stream-mode messages call. Reports `streaming` events with the
  * running output-token count so the dev toolbar can show progress live.
  */
-async function streamCall(
-  job: AiJob,
-  body: Record<string, unknown>,
-): Promise<unknown> {
+async function streamCall(job: AiJob, body: Record<string, unknown>): Promise<unknown> {
   const anthropic = getAnthropicClient();
   job.status = 'streaming';
   let outTokens = 0;
@@ -298,7 +322,9 @@ async function streamCall(
     if (outTokens - lastEmitted >= 100) {
       lastEmitted = outTokens;
       logEvent({
-        kind: 'streaming', caller: job.caller, job_id: job.id,
+        kind: 'streaming',
+        caller: job.caller,
+        job_id: job.id,
         output_tokens: outTokens,
       });
     }
@@ -309,11 +335,11 @@ async function streamCall(
 function redactRequest(body: Record<string, unknown>): unknown {
   try {
     const clone = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
-    const messages = clone.messages as Array<{ content?: unknown }> | undefined;
+    const messages = clone.messages as { content?: unknown }[] | undefined;
     if (Array.isArray(messages)) {
       for (const m of messages) {
         if (Array.isArray(m.content)) {
-          for (const block of m.content as Array<Record<string, unknown>>) {
+          for (const block of m.content as Record<string, unknown>[]) {
             const src = block.source as Record<string, unknown> | undefined;
             if (src && typeof src.data === 'string' && src.data.length > 200) {
               src.data = `<${src.data.length} bytes redacted>`;

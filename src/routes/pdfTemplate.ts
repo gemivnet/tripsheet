@@ -40,16 +40,20 @@ export function buildPdfHtml(trip: TripLike, items: ItemLike[], mode: PdfMode): 
   const days = groupByDay(trip, items);
   const pageBreak = mode === 'per-day' ? 'break-after: page;' : '';
 
-  const daysHtml = days.map((day, i) => {
-    const dateObj = new Date(day.date + 'T12:00:00');
-    const dateLabel = dateObj.toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric',
-    });
-    const itemsHtml = day.items.length === 0
-      ? `<div class="empty-day">(open day)</div>`
-      : day.items.map((item) => renderItem(item)).join('');
+  const daysHtml = days
+    .map((day, i) => {
+      const dateObj = new Date(day.date + 'T12:00:00');
+      const dateLabel = dateObj.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      });
+      const itemsHtml =
+        day.items.length === 0
+          ? `<div class="empty-day">(open day)</div>`
+          : day.items.map((item) => renderItem(item)).join('');
 
-    return `
+      return `
       <section class="day" style="${pageBreak}">
         <div class="day-header">
           <span class="day-num">Day ${i + 1}</span>
@@ -58,7 +62,8 @@ export function buildPdfHtml(trip: TripLike, items: ItemLike[], mode: PdfMode): 
         </div>
         <div class="items">${itemsHtml}</div>
       </section>`;
-  }).join('');
+    })
+    .join('');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -137,9 +142,14 @@ function formatTime(item: ItemLike): string {
 
 function formatDetail(item: ItemLike): { primary: string; detail: string | null } {
   let attrs: Record<string, unknown> = {};
-  try { attrs = JSON.parse(item.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
+  try {
+    attrs = JSON.parse(item.attributes_json) as Record<string, unknown>;
+  } catch {
+    /* ok */
+  }
   const get = (k: string): string | null => {
-    const v = attrs[k]; return v == null || v === '' ? null : String(v);
+    const v = attrs[k];
+    return v == null || v === '' ? null : String(v);
   };
 
   if (item.kind === 'transit') {
@@ -154,7 +164,9 @@ function formatDetail(item: ItemLike): { primary: string; detail: string | null 
       get('cabin'),
       seat ? `seat ${seat}` : null,
       item.confirmation ? `conf ${item.confirmation}` : null,
-    ].filter(Boolean).join(' · ');
+    ]
+      .filter(Boolean)
+      .join(' · ');
     return { primary, detail: tail || item.location };
   }
 
@@ -164,10 +176,10 @@ function formatDetail(item: ItemLike): { primary: string; detail: string | null 
       primary: property
         ? `${item.kind === 'checkin' ? 'Check-in' : 'Check-out'} · ${property}`
         : item.title,
-      detail: [
-        get('address'), get('room_type'),
-        item.confirmation ? `conf ${item.confirmation}` : null,
-      ].filter(Boolean).join(' · ') || item.location,
+      detail:
+        [get('address'), get('room_type'), item.confirmation ? `conf ${item.confirmation}` : null]
+          .filter(Boolean)
+          .join(' · ') || item.location,
     };
   }
 
@@ -178,12 +190,15 @@ function formatDetail(item: ItemLike): { primary: string; detail: string | null 
     const mealLabel = mealType ? mealType[0].toUpperCase() + mealType.slice(1) : 'Meal';
     return {
       primary: venue ? `${mealLabel} · ${venue}` : mealLabel,
-      detail: [
-        get('cuisine'),
-        party ? `party of ${party}` : null,
-        item.confirmation ? `res # ${item.confirmation}` : null,
-        get('address'),
-      ].filter(Boolean).join(' · ') || item.location,
+      detail:
+        [
+          get('cuisine'),
+          party ? `party of ${party}` : null,
+          item.confirmation ? `res # ${item.confirmation}` : null,
+          get('address'),
+        ]
+          .filter(Boolean)
+          .join(' · ') || item.location,
     };
   }
 
@@ -192,30 +207,38 @@ function formatDetail(item: ItemLike): { primary: string; detail: string | null 
     const party = get('party_size');
     return {
       primary: venue ?? item.title,
-      detail: [
-        get('category'), party ? `party of ${party}` : null,
-        item.confirmation ? `res # ${item.confirmation}` : null,
-        get('address'),
-      ].filter(Boolean).join(' · ') || item.location,
+      detail:
+        [
+          get('category'),
+          party ? `party of ${party}` : null,
+          item.confirmation ? `res # ${item.confirmation}` : null,
+          get('address'),
+        ]
+          .filter(Boolean)
+          .join(' · ') || item.location,
     };
   }
 
   if (item.kind === 'activity') {
     return {
       primary: get('venue_name') ?? item.title,
-      detail: [get('address'), item.hours, get('price')].filter(Boolean).join(' · ') || item.location,
+      detail:
+        [get('address'), item.hours, get('price')].filter(Boolean).join(' · ') || item.location,
     };
   }
   if (item.kind === 'package') {
     return {
       primary: item.title,
-      detail: [
-        get('operator'),
-        get('end_date') ? `through ${get('end_date')}` : null,
-        get('includes_lodging') === 'yes' ? 'lodging incl.' : null,
-        get('includes_meals') === 'yes' ? 'all meals incl.' : null,
-        item.confirmation ? `conf ${item.confirmation}` : null,
-      ].filter(Boolean).join(' · ') || item.location,
+      detail:
+        [
+          get('operator'),
+          get('end_date') ? `through ${get('end_date')}` : null,
+          get('includes_lodging') === 'yes' ? 'lodging incl.' : null,
+          get('includes_meals') === 'yes' ? 'all meals incl.' : null,
+          item.confirmation ? `conf ${item.confirmation}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || item.location,
     };
   }
 

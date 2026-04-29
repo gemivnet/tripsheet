@@ -24,52 +24,95 @@ export function PreviewTab({ state }: { state: EditorState }): JSX.Element {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'oklch(98% 0.01 75)' }}>
-      <div className="preview-toolbar no-print" style={{
-        display: 'flex', gap: 8, alignItems: 'center', padding: '12px 18px',
-        borderBottom: '1px solid var(--border)', background: 'var(--surface)',
-        position: 'sticky', top: 0, zIndex: 5,
-      }}>
+      <div
+        className="preview-toolbar no-print"
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          padding: '12px 18px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--surface)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 5,
+        }}
+      >
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Layout:</span>
         {(['per-day', 'condensed'] as const).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
             style={{
-              padding: '5px 12px', borderRadius: 16, fontSize: 12, fontWeight: 600,
+              padding: '5px 12px',
+              borderRadius: 16,
+              fontSize: 12,
+              fontWeight: 600,
               cursor: 'pointer',
-              border: '1.5px solid', borderColor: mode === m ? 'var(--accent)' : 'var(--border)',
+              border: '1.5px solid',
+              borderColor: mode === m ? 'var(--accent)' : 'var(--border)',
               background: mode === m ? 'oklch(97% 0.02 75)' : 'transparent',
               color: mode === m ? 'var(--accent)' : 'var(--text-muted)',
             }}
-          >{m === 'per-day' ? '📄 Per-day pages' : '📋 Condensed'}</button>
+          >
+            {m === 'per-day' ? '📄 Per-day pages' : '📋 Condensed'}
+          </button>
         ))}
         <div style={{ flex: 1 }} />
         <button
           onClick={print}
           style={{
-            padding: '6px 14px', borderRadius: 8, border: 'none',
-            background: 'var(--accent)', color: '#fff',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            padding: '6px 14px',
+            borderRadius: 8,
+            border: 'none',
+            background: 'var(--accent)',
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
           }}
-        >🖨 Print</button>
+        >
+          🖨 Print
+        </button>
       </div>
 
-      <div className="preview-page" data-mode={mode} style={{ padding: '24px 36px', maxWidth: 760, margin: '0 auto' }}>
+      <div
+        className="preview-page"
+        data-mode={mode}
+        style={{ padding: '24px 36px', maxWidth: 760, margin: '0 auto' }}
+      >
         <header style={{ marginBottom: 28 }}>
-          <h1 style={{
-            fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700,
-            letterSpacing: '-0.03em', margin: 0, lineHeight: 1.1,
-          }}>{trip.name}</h1>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 32,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              margin: 0,
+              lineHeight: 1.1,
+            }}
+          >
+            {trip.name}
+          </h1>
           <div style={{ marginTop: 8, color: 'var(--text-muted)', fontSize: 13.5 }}>
             {trip.start_date} → {trip.end_date}
             {trip.destination && <> · {trip.destination}</>}
           </div>
           {trip.goals && (
-            <div style={{
-              marginTop: 12, padding: '10px 14px', borderRadius: 8,
-              background: 'oklch(96% 0.02 75)', fontSize: 13, lineHeight: 1.5,
-              fontStyle: 'italic', color: 'var(--text)',
-            }}>{trip.goals}</div>
+            <div
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                borderRadius: 8,
+                background: 'oklch(96% 0.02 75)',
+                fontSize: 13,
+                lineHeight: 1.5,
+                fontStyle: 'italic',
+                color: 'var(--text)',
+              }}
+            >
+              {trip.goals}
+            </div>
           )}
         </header>
 
@@ -81,31 +124,60 @@ export function PreviewTab({ state }: { state: EditorState }): JSX.Element {
   );
 }
 
-function DaySection({ day, dayIndex, mode }: { day: Day; dayIndex: number; mode: PrintMode }): JSX.Element {
+function DaySection({
+  day,
+  dayIndex,
+  mode,
+}: {
+  day: Day;
+  dayIndex: number;
+  mode: PrintMode;
+}): JSX.Element {
   const dateObj = new Date(day.date + 'T12:00:00');
   return (
     <section
       className="preview-day"
       data-mode={mode}
-      style={{
-        marginBottom: 28,
-        // per-day mode forces a page break after each day on print
-        breakAfter: mode === 'per-day' ? 'page' : undefined,
-      } as React.CSSProperties}
+      style={
+        {
+          marginBottom: 28,
+          // per-day mode forces a page break after each day on print
+          breakAfter: mode === 'per-day' ? 'page' : undefined,
+        } as React.CSSProperties
+      }
     >
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12,
-        paddingBottom: 8, borderBottom: '2px solid var(--text)',
-      }}>
-        <span style={{
-          fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
-          letterSpacing: '-0.02em',
-        }}>Day {dayIndex + 1}</span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 12,
+          marginBottom: 12,
+          paddingBottom: 8,
+          borderBottom: '2px solid var(--text)',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 22,
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          Day {dayIndex + 1}
+        </span>
         <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
           {dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <span
+          style={{
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          }}
+        >
           {day.items.length} {day.items.length === 1 ? 'item' : 'items'}
         </span>
       </div>
@@ -116,7 +188,9 @@ function DaySection({ day, dayIndex, mode }: { day: Day; dayIndex: number; mode:
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 10 }}>
-          {day.items.map((item) => <PreviewItem key={item.id} item={item} />)}
+          {day.items.map((item) => (
+            <PreviewItem key={item.id} item={item} />
+          ))}
         </div>
       )}
     </section>
@@ -127,25 +201,45 @@ function PreviewItem({ item }: { item: Item }): JSX.Element {
   const time = formatTime(item);
   const detail = formatDetail(item);
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '90px 1fr', gap: 14,
-      padding: '6px 0', alignItems: 'baseline',
-    }}>
-      <div style={{
-        fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums',
-        fontWeight: 600, whiteSpace: 'nowrap',
-      }}>{time}</div>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '90px 1fr',
+        gap: 14,
+        padding: '6px 0',
+        alignItems: 'baseline',
+      }}
+    >
+      <div
+        style={{
+          fontSize: 12,
+          color: 'var(--text-muted)',
+          fontVariantNumeric: 'tabular-nums',
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {time}
+      </div>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>
-          {detail.primary}
-        </div>
+        <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>{detail.primary}</div>
         {detail.secondary && (
-          <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+          <div
+            style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}
+          >
             {detail.secondary}
           </div>
         )}
         {item.notes && (
-          <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic', lineHeight: 1.4 }}>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: 'var(--text-muted)',
+              marginTop: 4,
+              fontStyle: 'italic',
+              lineHeight: 1.4,
+            }}
+          >
             {item.notes}
           </div>
         )}
@@ -166,7 +260,11 @@ function formatTime(item: Item): string {
 
 function formatDetail(item: Item): { primary: string; secondary: string | null } {
   let attrs: Record<string, unknown> = {};
-  try { attrs = JSON.parse(item.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
+  try {
+    attrs = JSON.parse(item.attributes_json) as Record<string, unknown>;
+  } catch {
+    /* ok */
+  }
   const get = (k: string): string | null => {
     const v = attrs[k];
     return v == null || v === '' ? null : String(v);
@@ -185,7 +283,9 @@ function formatDetail(item: Item): { primary: string; secondary: string | null }
       get('cabin'),
       seat ? `seat ${seat}` : null,
       conf ? `conf ${conf}` : null,
-    ].filter(Boolean).join(' · ');
+    ]
+      .filter(Boolean)
+      .join(' · ');
     return { primary, secondary: tail || item.location };
   }
   if (item.kind === 'checkin' || item.kind === 'checkout') {
@@ -196,7 +296,9 @@ function formatDetail(item: Item): { primary: string; secondary: string | null }
       primary: property
         ? `${item.kind === 'checkin' ? 'Check-in' : 'Check-out'} · ${property}`
         : item.title,
-      secondary: [get('address'), room, conf ? `conf ${conf}` : null].filter(Boolean).join(' · ') || item.location,
+      secondary:
+        [get('address'), room, conf ? `conf ${conf}` : null].filter(Boolean).join(' · ') ||
+        item.location,
     };
   }
   if (item.kind === 'meal') {
@@ -206,12 +308,15 @@ function formatDetail(item: Item): { primary: string; secondary: string | null }
     const mealLabel = mealType ? mealType[0].toUpperCase() + mealType.slice(1) : 'Meal';
     return {
       primary: venue ? `${mealLabel} · ${venue}` : mealLabel,
-      secondary: [
-        get('cuisine'),
-        party ? `party of ${party}` : null,
-        item.confirmation ? `res # ${item.confirmation}` : null,
-        get('address'),
-      ].filter(Boolean).join(' · ') || item.location,
+      secondary:
+        [
+          get('cuisine'),
+          party ? `party of ${party}` : null,
+          item.confirmation ? `res # ${item.confirmation}` : null,
+          get('address'),
+        ]
+          .filter(Boolean)
+          .join(' · ') || item.location,
     };
   }
 
@@ -221,30 +326,37 @@ function formatDetail(item: Item): { primary: string; secondary: string | null }
     const resvNum = get('reservation_number');
     return {
       primary: venue ?? item.title,
-      secondary: [
-        get('category'),
-        party ? `party of ${party}` : null,
-        resvNum ? `res # ${resvNum}` : null,
-        get('address'),
-      ].filter(Boolean).join(' · ') || item.location,
+      secondary:
+        [
+          get('category'),
+          party ? `party of ${party}` : null,
+          resvNum ? `res # ${resvNum}` : null,
+          get('address'),
+        ]
+          .filter(Boolean)
+          .join(' · ') || item.location,
     };
   }
   if (item.kind === 'activity') {
     return {
       primary: get('venue_name') ?? item.title,
-      secondary: [get('address'), item.hours, get('price')].filter(Boolean).join(' · ') || item.location,
+      secondary:
+        [get('address'), item.hours, get('price')].filter(Boolean).join(' · ') || item.location,
     };
   }
   if (item.kind === 'package') {
     return {
       primary: item.title,
-      secondary: [
-        get('operator'),
-        get('end_date') ? `through ${get('end_date')}` : null,
-        get('includes_lodging') === 'yes' ? 'lodging incl.' : null,
-        get('includes_meals') === 'yes' ? 'all meals incl.' : null,
-        item.confirmation ? `conf ${item.confirmation}` : null,
-      ].filter(Boolean).join(' · ') || item.location,
+      secondary:
+        [
+          get('operator'),
+          get('end_date') ? `through ${get('end_date')}` : null,
+          get('includes_lodging') === 'yes' ? 'lodging incl.' : null,
+          get('includes_meals') === 'yes' ? 'all meals incl.' : null,
+          item.confirmation ? `conf ${item.confirmation}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || item.location,
     };
   }
   return { primary: item.title, secondary: item.location };

@@ -14,7 +14,7 @@ let instance: DB | undefined;
  * Tests pass `:memory:` to get an isolated DB per suite.
  */
 export function openDb(path: string): DB {
-  if (instance && instance.name === path) return instance;
+  if (instance?.name === path) return instance;
   if (instance) instance.close();
 
   if (path !== ':memory:') {

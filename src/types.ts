@@ -25,12 +25,7 @@ export const ITEM_KINDS: readonly ItemKind[] = [
   'transit',
 ] as const;
 
-export type SuggestionKind =
-  | 'add_item'
-  | 'modify_item'
-  | 'remove_item'
-  | 'move_item'
-  | 'note';
+export type SuggestionKind = 'add_item' | 'modify_item' | 'remove_item' | 'move_item' | 'note';
 
 export type SuggestionStatus = 'pending' | 'accepted' | 'rejected';
 

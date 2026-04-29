@@ -84,12 +84,7 @@ export interface KindDef {
   fields: KindFieldDef[];
 }
 
-export type SuggestionKind =
-  | 'add_item'
-  | 'modify_item'
-  | 'remove_item'
-  | 'move_item'
-  | 'note';
+export type SuggestionKind = 'add_item' | 'modify_item' | 'remove_item' | 'move_item' | 'note';
 
 export interface Suggestion {
   id: number;
@@ -175,38 +170,45 @@ export const api = {
 
   listParticipants: (tripId: number) =>
     request<{ participants: Participant[] }>(`/api/participants/trips/${tripId}`),
-  addParticipant: (tripId: number, body: { display_name: string; color_hue?: number | null; notes?: string | null }) =>
+  addParticipant: (
+    tripId: number,
+    body: { display_name: string; color_hue?: number | null; notes?: string | null },
+  ) =>
     request<{ participant: Participant }>(`/api/participants/trips/${tripId}`, {
-      method: 'POST', body: JSON.stringify(body),
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
   updateParticipant: (id: number, patch: Partial<Participant>) =>
     request<{ participant: Participant }>(`/api/participants/${id}`, {
-      method: 'PATCH', body: JSON.stringify(patch),
+      method: 'PATCH',
+      body: JSON.stringify(patch),
     }),
   deleteParticipant: (id: number) =>
     request<{ ok: true }>(`/api/participants/${id}`, { method: 'DELETE' }),
   setItemParticipants: (itemId: number, participantIds: number[]) =>
-    request<{ ok: true; participant_ids: number[] }>(
-      `/api/participants/items/${itemId}`,
-      { method: 'PUT', body: JSON.stringify({ participant_ids: participantIds }) },
-    ),
+    request<{ ok: true; participant_ids: number[] }>(`/api/participants/items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ participant_ids: participantIds }),
+    }),
   updateTrip: (id: number, patch: Partial<Trip>) =>
     request<{ trip: Trip }>(`/api/trips/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
-  deleteTrip: (id: number) =>
-    request<{ ok: true }>(`/api/trips/${id}`, { method: 'DELETE' }),
+  deleteTrip: (id: number) => request<{ ok: true }>(`/api/trips/${id}`, { method: 'DELETE' }),
   deleteDay: (id: number, date: string, mode: 'shift' | 'leave') =>
     request<{ ok: true; trip: Trip; deleted_items: number; shifted_items: number }>(
       `/api/trips/${id}/days/${date}?mode=${mode}`,
       { method: 'DELETE' },
     ),
   reimportTrip: (tripId: number, docId: number) =>
-    request<{ ok: true; deleted: number; created: number }>(
-      `/api/trips/${tripId}/reimport`,
-      { method: 'POST', body: JSON.stringify({ doc_id: docId }) },
-    ),
+    request<{ ok: true; deleted: number; created: number }>(`/api/trips/${tripId}/reimport`, {
+      method: 'POST',
+      body: JSON.stringify({ doc_id: docId }),
+    }),
 
   createItem: (tripId: number, body: Partial<Item>) =>
-    request<{ item: Item }>(`/api/trips/${tripId}/items`, { method: 'POST', body: JSON.stringify(body) }),
+    request<{ item: Item }>(`/api/trips/${tripId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   updateItem: (tripId: number, itemId: number, patch: Partial<Item>) =>
     request<{ item: Item }>(`/api/trips/${tripId}/items/${itemId}`, {
       method: 'PATCH',
@@ -231,7 +233,9 @@ export const api = {
       body: JSON.stringify(patch),
     }),
   acceptSuggestion: (id: number) =>
-    request<{ ok: true; item?: Item; removed_item_id?: number }>(`/api/suggestions/${id}/accept`, { method: 'POST' }),
+    request<{ ok: true; item?: Item; removed_item_id?: number }>(`/api/suggestions/${id}/accept`, {
+      method: 'POST',
+    }),
   rejectSuggestion: (id: number) =>
     request<{ ok: true }>(`/api/suggestions/${id}/reject`, { method: 'POST' }),
 
@@ -251,48 +255,49 @@ export const api = {
         : `/api/uploads?scope=trip&trip_id=${scope.tripId}`;
     return request<{ docs: ReferenceDoc[] }>(url);
   },
-  getDoc: (id: number) =>
-    request<{ doc: ReferenceDoc; items: unknown[] }>(`/api/uploads/${id}`),
+  getDoc: (id: number) => request<{ doc: ReferenceDoc; items: unknown[] }>(`/api/uploads/${id}`),
   uploadDoc: async (form: FormData) => {
-    const res = await fetch('/api/uploads', { method: 'POST', body: form, credentials: 'same-origin' });
+    const res = await fetch('/api/uploads', {
+      method: 'POST',
+      body: form,
+      credentials: 'same-origin',
+    });
     if (!res.ok) throw new Error(await res.text());
     return (await res.json()) as { doc: ReferenceDoc };
   },
   reparseDoc: (id: number) =>
     request<{ ok: true }>(`/api/ai/docs/${id}/reparse`, { method: 'POST' }),
-  deleteDoc: (id: number) =>
-    request<{ ok: true }>(`/api/uploads/${id}`, { method: 'DELETE' }),
+  deleteDoc: (id: number) => request<{ ok: true }>(`/api/uploads/${id}`, { method: 'DELETE' }),
   deriveItemTz: (itemId: number) =>
-    request<{ tz: string | null; end_tz: string | null }>(
-      `/api/ai/items/${itemId}/derive-tz`,
-      { method: 'POST' },
-    ),
+    request<{ tz: string | null; end_tz: string | null }>(`/api/ai/items/${itemId}/derive-tz`, {
+      method: 'POST',
+    }),
   docFileUrl: (id: number) => `/api/uploads/${id}/file`,
 
   activity: () => request<{ activity: ActivityEntry[] }>('/api/activity'),
 
-  devState: (sinceEventId = 0) =>
-    request<DevState>(`/api/dev/state?since=${sinceEventId}`),
+  devState: (sinceEventId = 0) => request<DevState>(`/api/dev/state?since=${sinceEventId}`),
   devSetConcurrency: (n: number) =>
     request<{ ok: true; concurrency: number }>('/api/dev/ai/concurrency', {
-      method: 'POST', body: JSON.stringify({ n }),
+      method: 'POST',
+      body: JSON.stringify({ n }),
     }),
   devGetExchange: (id: number | string) =>
     request<{ exchange: ExchangeFull }>(`/api/dev/exchanges/${encodeURIComponent(String(id))}`),
   devPauseAi: (paused: boolean) =>
     request<{ ok: true; paused: boolean }>('/api/dev/ai/pause', {
-      method: 'POST', body: JSON.stringify({ paused }),
+      method: 'POST',
+      body: JSON.stringify({ paused }),
     }),
   devSetModel: (model: string | null) =>
     request<{ ok: true; model: string }>('/api/dev/ai/model', {
-      method: 'POST', body: JSON.stringify({ model }),
+      method: 'POST',
+      body: JSON.stringify({ model }),
     }),
-  devResetUsage: () =>
-    request<{ ok: true }>('/api/dev/ai/usage/reset', { method: 'POST' }),
+  devResetUsage: () => request<{ ok: true }>('/api/dev/ai/usage/reset', { method: 'POST' }),
   devReparseAll: () =>
     request<{ ok: true; queued: number }>('/api/dev/reparse-all', { method: 'POST' }),
-  devNuke: () =>
-    request<{ ok: true }>('/api/dev/nuke-data', { method: 'POST' }),
+  devNuke: () => request<{ ok: true }>('/api/dev/nuke-data', { method: 'POST' }),
 };
 
 export interface AiJob {
@@ -308,7 +313,16 @@ export interface AiJob {
 export interface AiEvent {
   id: number;
   at: string;
-  kind: 'queued' | 'started' | 'streaming' | 'retry' | 'completed' | 'error' | 'paused' | 'resumed' | 'log';
+  kind:
+    | 'queued'
+    | 'started'
+    | 'streaming'
+    | 'retry'
+    | 'completed'
+    | 'error'
+    | 'paused'
+    | 'resumed'
+    | 'log';
   caller: string;
   job_id?: string;
   message?: string;

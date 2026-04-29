@@ -34,7 +34,7 @@ export function loadConfig(path: string): Config {
     raw = yaml.load(readFileSync(path, 'utf-8'));
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
-    throw new Error(`Could not read config at ${path}: ${reason}`);
+    throw new Error(`Could not read config at ${path}: ${reason}`, { cause: e });
   }
 
   const parsed = ConfigSchema.safeParse(raw);

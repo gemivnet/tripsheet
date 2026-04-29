@@ -63,15 +63,20 @@ export function suggestionsRouter(db: DB): Router {
     const nextPayload = parsed.data.payload ? JSON.stringify(parsed.data.payload) : s.payload_json;
     const nextRationale = parsed.data.rationale ?? s.rationale;
     db.transaction(() => {
-      db.prepare(
-        `UPDATE suggestions SET payload_json = ?, rationale = ? WHERE id = ?`,
-      ).run(nextPayload, nextRationale, id);
+      db.prepare(`UPDATE suggestions SET payload_json = ?, rationale = ? WHERE id = ?`).run(
+        nextPayload,
+        nextRationale,
+        id,
+      );
       writeAudit(db, {
         user_id: userId,
         entity: 'suggestion',
         entity_id: id,
         action: 'update',
-        diff: { before: { payload_json: s.payload_json, rationale: s.rationale }, after: { payload_json: nextPayload, rationale: nextRationale } },
+        diff: {
+          before: { payload_json: s.payload_json, rationale: s.rationale },
+          after: { payload_json: nextPayload, rationale: nextRationale },
+        },
       });
     })();
     const updated = getSuggestion.get(id)!;
@@ -120,11 +125,7 @@ export interface AcceptResult {
   removed_item_id?: number;
 }
 
-export function applySuggestion(
-  db: DB,
-  suggestion: SuggestionRow,
-  userId: number,
-): AcceptResult {
+export function applySuggestion(db: DB, suggestion: SuggestionRow, userId: number): AcceptResult {
   const payload = JSON.parse(suggestion.payload_json) as Record<string, unknown>;
   const now = new Date().toISOString();
 
@@ -151,13 +152,7 @@ export function applySuggestion(
           .prepare<[number], ItemRow>('SELECT * FROM items WHERE id = ?')
           .get(suggestion.target_item_id);
         if (before) {
-          newItem = updateItem(
-            db,
-            suggestion.target_item_id,
-            payload as Partial<ItemRow>,
-            userId,
-            before,
-          );
+          newItem = updateItem(db, suggestion.target_item_id, payload, userId, before);
         }
         break;
       }
@@ -182,6 +177,9 @@ export function applySuggestion(
       case 'note':
         // no itinerary mutation; accepting just closes the card
         break;
+      default:
+        // exhaustiveness guard for future SuggestionKind values
+        break;
     }
 
     db.prepare(
@@ -192,7 +190,11 @@ export function applySuggestion(
       entity: 'suggestion',
       entity_id: suggestion.id,
       action: 'accept',
-      diff: { kind: suggestion.kind, applied_item_id: newItem?.id ?? null, removed_item_id: removedId ?? null },
+      diff: {
+        kind: suggestion.kind,
+        applied_item_id: newItem?.id ?? null,
+        removed_item_id: removedId ?? null,
+      },
     });
 
     return { ok: true, item: newItem, removed_item_id: removedId };

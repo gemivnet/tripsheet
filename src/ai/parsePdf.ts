@@ -4,8 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { DB } from '../db/index.js';
-import type { ItemRow, ReferenceDocKind, ReferenceDocRow, TripRow } from '../types.js';
-import { ITEM_KINDS } from '../types.js';
+import {
+  ITEM_KINDS,
+  type ItemRow,
+  type ReferenceDocKind,
+  type ReferenceDocRow,
+  type TripRow,
+} from '../types.js';
 import { writeAudit } from '../audit.js';
 import { createTrip, createItem } from '../routes/trips.js';
 import { callMessages, hasAnthropicKey } from './client.js';
@@ -38,7 +43,11 @@ const ParsedSchema = z.object({
   items: z.array(
     z.object({
       day_offset: z.number().int().nullable().optional(),
-      day_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+      day_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
+        .optional(),
       kind: z.string(),
       title: z.string(),
       start_time: z.string().nullable().optional(),
@@ -76,14 +85,16 @@ type ParsedItem = z.infer<typeof ParsedSchema>['items'][number];
 export function queueParse(db: DB, doc: ReferenceDocRow, uploadDir: string): void {
   if (!hasAnthropicKey()) return;
 
-  db.prepare(`UPDATE reference_docs SET parse_status = 'running', parse_error = NULL WHERE id = ?`)
-    .run(doc.id);
+  db.prepare(
+    `UPDATE reference_docs SET parse_status = 'running', parse_error = NULL WHERE id = ?`,
+  ).run(doc.id);
 
   void parseDoc(db, doc, uploadDir).catch((e: unknown) => {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[parsePdf] doc ${doc.id} "${doc.title}" failed: ${msg}`);
-    db.prepare(`UPDATE reference_docs SET parse_status = 'error', parse_error = ? WHERE id = ?`)
-      .run(msg, doc.id);
+    db.prepare(
+      `UPDATE reference_docs SET parse_status = 'error', parse_error = ? WHERE id = ?`,
+    ).run(msg, doc.id);
   });
 }
 
@@ -103,11 +114,11 @@ export async function parseDocAsItems(
 ): Promise<{
   summary: string;
   doc_kind: string;
-  items: Array<z.infer<typeof ParsedSchema>['items'][number]>;
+  items: z.infer<typeof ParsedSchema>['items'][number][];
   trip: { name: string; start_date: string; end_date: string; destination: string | null } | null;
 }> {
   const trip = doc.trip_id
-    ? db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?').get(doc.trip_id) ?? null
+    ? (db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?').get(doc.trip_id) ?? null)
     : null;
 
   const fileBytes = readFileSync(join(uploadDir, doc.stored_filename));
@@ -162,7 +173,7 @@ export async function parseDocAsItems(
 
 async function parseDoc(db: DB, doc: ReferenceDocRow, uploadDir: string): Promise<void> {
   const trip = doc.trip_id
-    ? db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?').get(doc.trip_id) ?? null
+    ? (db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?').get(doc.trip_id) ?? null)
     : null;
 
   const fileBytes = readFileSync(join(uploadDir, doc.stored_filename));
@@ -241,11 +252,7 @@ async function parseDoc(db: DB, doc: ReferenceDocRow, uploadDir: string): Promis
  * trip metadata auto-build a new trip + items. Everything else lands in
  * the reference-items memory cache for future AI context.
  */
-function routeLibraryDoc(
-  db: DB,
-  doc: ReferenceDocRow,
-  parsed: z.infer<typeof ParsedSchema>,
-): void {
+function routeLibraryDoc(db: DB, doc: ReferenceDocRow, parsed: z.infer<typeof ParsedSchema>): void {
   const isItinerary =
     parsed.doc_kind === 'external_itinerary' || parsed.doc_kind === 'past_itinerary';
   if (isItinerary && parsed.trip) {
@@ -413,7 +420,10 @@ function findMatchingItem(
 }
 
 function normalizeTitle(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 function daysBetween(a: string, b: string): number {
@@ -496,13 +506,7 @@ function emitTripImportSuggestions(
         : {}),
     };
     const rationale = `Imported from "${doc.title}".`;
-    const info = insert.run(
-      trip.id,
-      batchId,
-      JSON.stringify(payload),
-      rationale,
-      now,
-    );
+    const info = insert.run(trip.id, batchId, JSON.stringify(payload), rationale, now);
     writeAudit(db, {
       user_id: doc.uploaded_by,
       entity: 'suggestion',
@@ -536,9 +540,10 @@ export async function reimportTrip(
   // 2. Wipe + rebuild atomically.
   const tx = db.transaction((): { deleted: number; created: number } => {
     const before = db
-      .prepare<[number], { id: number; title: string }>(
-        'SELECT id, title FROM items WHERE trip_id = ?',
-      )
+      .prepare<
+        [number],
+        { id: number; title: string }
+      >('SELECT id, title FROM items WHERE trip_id = ?')
       .all(trip.id);
     for (const it of before) {
       db.prepare('DELETE FROM items WHERE id = ?').run(it.id);
@@ -575,7 +580,7 @@ export async function reimportTrip(
             tz: item.tz ?? null,
             end_tz: item.end_tz ?? null,
             attributes: item.attributes ?? {},
-          } as never,
+          },
           userId,
         );
         created++;
@@ -612,16 +617,30 @@ function normalizeItemKind(raw: string): string {
   if ((ITEM_KINDS as readonly string[]).includes(lower)) return lower;
   // Map common parse-time labels back onto the app's canonical set.
   if (lower === 'lodging' || lower === 'hotel' || lower === 'stay') return 'checkin';
-  if (lower === 'flight' || lower === 'train' || lower === 'drive' || lower === 'transfer') return 'transit';
+  if (lower === 'flight' || lower === 'train' || lower === 'drive' || lower === 'transfer')
+    return 'transit';
   if (
-    lower === 'restaurant' || lower === 'dining' || lower === 'breakfast' ||
-    lower === 'brunch' || lower === 'lunch' || lower === 'dinner' ||
-    lower === 'drinks' || lower === 'bar' || lower === 'cafe' || lower === 'snack'
-  ) return 'meal';
+    lower === 'restaurant' ||
+    lower === 'dining' ||
+    lower === 'breakfast' ||
+    lower === 'brunch' ||
+    lower === 'lunch' ||
+    lower === 'dinner' ||
+    lower === 'drinks' ||
+    lower === 'bar' ||
+    lower === 'cafe' ||
+    lower === 'snack'
+  )
+    return 'meal';
   if (
-    lower === 'tour' || lower === 'cruise' || lower === 'retreat' ||
-    lower === 'resort' || lower === 'all-inclusive' || lower === 'all_inclusive'
-  ) return 'package';
+    lower === 'tour' ||
+    lower === 'cruise' ||
+    lower === 'retreat' ||
+    lower === 'resort' ||
+    lower === 'all-inclusive' ||
+    lower === 'all_inclusive'
+  )
+    return 'package';
   return 'activity';
 }
 
@@ -679,9 +698,9 @@ function persistFailure(
  * Falls back to the substring between the first `{` and last `}`.
  */
 function extractJsonBlob(text: string): string {
-  const closed = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const closed = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
   if (closed) return closed[1].trim();
-  const halfOpen = text.match(/```(?:json)?\s*([\s\S]*)$/);
+  const halfOpen = /```(?:json)?\s*([\s\S]*)$/.exec(text);
   if (halfOpen) return halfOpen[1].trim();
   const first = text.indexOf('{');
   const last = text.lastIndexOf('}');
@@ -690,11 +709,11 @@ function extractJsonBlob(text: string): string {
 }
 
 function extractText(response: unknown): string {
-  const r = response as { content?: Array<{ type: string; text?: string }> };
+  const r = response as { content?: { type: string; text?: string }[] };
   const blocks = r.content ?? [];
   return blocks
     .filter((b) => b.type === 'text' && typeof b.text === 'string')
-    .map((b) => b.text as string)
+    .map((b) => b.text!)
     .join('\n');
 }
 

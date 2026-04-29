@@ -1,8 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { DB } from './index.js';
-import { openDb, dbPath } from './index.js';
+import { openDb, dbPath, type DB } from './index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const MIGRATIONS_DIR = join(here, 'migrations');

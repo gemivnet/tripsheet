@@ -10,7 +10,9 @@ import { backfillItemDerivations, backfillTripSlugs } from './boot-backfill.js';
 async function main(): Promise<void> {
   const configPath = process.env.CONFIG_PATH ?? 'config.yaml';
   if (!existsSync(configPath)) {
-    console.error(`Config file not found at ${configPath}. Copy config.example.yaml → ${configPath} to get started.`);
+    console.error(
+      `Config file not found at ${configPath}. Copy config.example.yaml → ${configPath} to get started.`,
+    );
     process.exit(1);
   }
   const config = loadConfig(configPath);

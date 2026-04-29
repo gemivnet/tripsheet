@@ -13,15 +13,41 @@
 const NON_24H_WINDOWS: Record<string, number> = {
   // Long opening windows (low-cost carriers selling early seat assignments)
   U2: 30 * 24, // easyJet
-  VY: 7 * 24,  // Vueling
+  VY: 7 * 24, // Vueling
   // 48h windows
-  AM: 48, FR: 48, W6: 48, EK: 48, QR: 48, CX: 48, SQ: 48, KE: 48,
-  OZ: 48, CA: 48, MU: 48, CZ: 48, MH: 48, AI: 48, '6E': 48,
-  LA: 48, JJ: 48, JQ: 48, QH: 48, G3: 48,
+  AM: 48,
+  FR: 48,
+  W6: 48,
+  EK: 48,
+  QR: 48,
+  CX: 48,
+  SQ: 48,
+  KE: 48,
+  OZ: 48,
+  CA: 48,
+  MU: 48,
+  CZ: 48,
+  MH: 48,
+  AI: 48,
+  '6E': 48,
+  LA: 48,
+  JJ: 48,
+  JQ: 48,
+  QH: 48,
+  G3: 48,
   // 36h windows
-  AY: 36, AF: 30, KL: 30, EI: 30, EY: 30, U2_: 36,
+  AY: 36,
+  AF: 30,
+  KL: 30,
+  EI: 30,
+  EY: 30,
+  U2_: 36,
   // Tight windows
-  LH: 23, LX: 23, OS: 23, SK: 22, TP: 36,
+  LH: 23,
+  LX: 23,
+  OS: 23,
+  SK: 22,
+  TP: 36,
 };
 
 export function checkinHours(iata: string | null | undefined): number {

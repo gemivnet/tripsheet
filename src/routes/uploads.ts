@@ -49,9 +49,10 @@ export function uploadsRouter(db: DB, config: Config, dataDir: string): Router {
     const scope = typeof req.query.scope === 'string' ? req.query.scope : null;
     if (scope === 'library') {
       const docs = db
-        .prepare<[], ReferenceDocRow>(
-          `SELECT * FROM reference_docs WHERE trip_id IS NULL ORDER BY uploaded_at DESC`,
-        )
+        .prepare<
+          [],
+          ReferenceDocRow
+        >(`SELECT * FROM reference_docs WHERE trip_id IS NULL ORDER BY uploaded_at DESC`)
         .all();
       res.json({ docs });
       return;
@@ -63,9 +64,10 @@ export function uploadsRouter(db: DB, config: Config, dataDir: string): Router {
         return;
       }
       const docs = db
-        .prepare<[number], ReferenceDocRow>(
-          `SELECT * FROM reference_docs WHERE trip_id = ? ORDER BY uploaded_at DESC`,
-        )
+        .prepare<
+          [number],
+          ReferenceDocRow
+        >(`SELECT * FROM reference_docs WHERE trip_id = ? ORDER BY uploaded_at DESC`)
         .all(tripId);
       res.json({ docs });
       return;
@@ -86,7 +88,10 @@ export function uploadsRouter(db: DB, config: Config, dataDir: string): Router {
       return;
     }
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.source_filename)}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(doc.source_filename)}"`,
+    );
     res.sendFile(join(uploadDir, doc.stored_filename));
   });
 
@@ -100,7 +105,10 @@ export function uploadsRouter(db: DB, config: Config, dataDir: string): Router {
       return;
     }
     const items = db
-      .prepare<[number], ReferenceItemRow>('SELECT * FROM reference_items WHERE doc_id = ? ORDER BY day_offset, id')
+      .prepare<
+        [number],
+        ReferenceItemRow
+      >('SELECT * FROM reference_items WHERE doc_id = ? ORDER BY day_offset, id')
       .all(id);
     res.json({ doc, items });
   });
@@ -169,9 +177,9 @@ export function uploadsRouter(db: DB, config: Config, dataDir: string): Router {
     db.transaction(() => {
       db.prepare('DELETE FROM reference_items WHERE doc_id = ?').run(id);
       db.prepare(`UPDATE items SET source_doc_id = NULL WHERE source_doc_id = ?`).run(id);
-      db.prepare(
-        `DELETE FROM suggestions WHERE status = 'pending' AND payload_json LIKE ?`,
-      ).run(`%"source_doc_id":${id}%`);
+      db.prepare(`DELETE FROM suggestions WHERE status = 'pending' AND payload_json LIKE ?`).run(
+        `%"source_doc_id":${id}%`,
+      );
       db.prepare('DELETE FROM reference_docs WHERE id = ?').run(id);
       writeAudit(db, {
         user_id: userId,
@@ -181,7 +189,11 @@ export function uploadsRouter(db: DB, config: Config, dataDir: string): Router {
         diff: { before: { id: doc.id, title: doc.title, trip_id: doc.trip_id } },
       });
     })();
-    try { rmSync(join(uploadDir, doc.stored_filename)); } catch { /* already gone */ }
+    try {
+      rmSync(join(uploadDir, doc.stored_filename));
+    } catch {
+      /* already gone */
+    }
     res.json({ ok: true });
   });
 

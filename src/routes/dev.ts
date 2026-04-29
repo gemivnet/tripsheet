@@ -92,9 +92,7 @@ export function devRouter(getDb: () => DB, dataDir: string): Router {
   });
 
   router.post('/reparse-all', (_req, res) => {
-    const docs = db
-      .prepare<[], ReferenceDocRow>('SELECT * FROM reference_docs ORDER BY id')
-      .all();
+    const docs = db.prepare<[], ReferenceDocRow>('SELECT * FROM reference_docs ORDER BY id').all();
     const uploadDir = join(dataDir, 'uploads');
     for (const doc of docs) queueParse(db, doc, uploadDir);
     res.json({ ok: true, queued: docs.length });

@@ -1,15 +1,18 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import type { DB } from '../db/index.js';
-import type { ItemRow, TripRow } from '../types.js';
-import { ITEM_KINDS } from '../types.js';
-import type { ItemKind } from '../types.js';
+import {
+  ITEM_KINDS,
+  type ItemKind,
+  type ItemRow,
+  type ReferenceDocRow,
+  type TripRow,
+} from '../types.js';
 import { requireAuth, authed } from '../auth/middleware.js';
 import { writeAudit } from '../audit.js';
 import { defForKind, safeParseAttrs, KINDS } from '../itemKinds/index.js';
 import { buildPdfHtml, type PdfMode } from './pdfTemplate.js';
 import { reimportTrip } from '../ai/parsePdf.js';
-import type { ReferenceDocRow } from '../types.js';
 import { generateUniqueTripSlug, looksLikeSlug } from '../slug.js';
 
 const TripBody = z.object({
@@ -71,7 +74,10 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
     if (Number.isFinite(n)) return getTrip.get(n) ?? null;
     return null;
   };
-  const listItems = db.prepare<[number], ItemRow & { created_by_name: string | null; participant_ids_csv: string | null }>(
+  const listItems = db.prepare<
+    [number],
+    ItemRow & { created_by_name: string | null; participant_ids_csv: string | null }
+  >(
     `SELECT i.*,
             u.display_name AS created_by_name,
             (SELECT GROUP_CONCAT(participant_id) FROM item_participants WHERE item_id = i.id) AS participant_ids_csv
@@ -118,13 +124,11 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
       res.status(404).json({ error: 'Trip not found' });
       return;
     }
-    const id = trip.id;
+    const { id } = trip;
     const rawItems = listItems.all(id);
     const items = rawItems.map((r) => ({
       ...r,
-      participant_ids: r.participant_ids_csv
-        ? r.participant_ids_csv.split(',').map(Number)
-        : [],
+      participant_ids: r.participant_ids_csv ? r.participant_ids_csv.split(',').map(Number) : [],
     }));
     const participants = db
       .prepare('SELECT * FROM participants WHERE trip_id = ? ORDER BY id')
@@ -134,8 +138,11 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
 
   router.get('/:id/export/pdf', (req, res) => {
     const trip = resolveTrip(req.params.id);
-    if (!trip) { res.status(404).json({ error: 'Trip not found' }); return; }
-    const id = trip.id;
+    if (!trip) {
+      res.status(404).json({ error: 'Trip not found' });
+      return;
+    }
+    const { id } = trip;
     const mode: PdfMode = req.query.mode === 'condensed' ? 'condensed' : 'per-day';
     const rawItems = listItems.all(id);
 
@@ -156,10 +163,18 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
         });
         const page = await browser.newPage();
         await page.setContent(html, { waitUntil: 'networkidle0' });
-        const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+        const pdf = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: { top: '0', right: '0', bottom: '0', left: '0' },
+        });
         await browser.close();
 
-        const safeName = trip.name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 60);
+        const safeName = trip.name
+          .replace(/[^\w\s-]/g, '')
+          .trim()
+          .replace(/\s+/g, '-')
+          .slice(0, 60);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
         res.send(pdf);
@@ -172,14 +187,26 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
 
   router.post('/:id/reimport', (req, res) => {
     const trip = resolveTrip(req.params.id);
-    if (!trip) { res.status(404).json({ error: 'Trip not found' }); return; }
-    if (!uploadDir) { res.status(500).json({ error: 'Upload directory not configured' }); return; }
+    if (!trip) {
+      res.status(404).json({ error: 'Trip not found' });
+      return;
+    }
+    if (!uploadDir) {
+      res.status(500).json({ error: 'Upload directory not configured' });
+      return;
+    }
     const docId = Number(req.body?.doc_id);
-    if (!Number.isFinite(docId)) { res.status(400).json({ error: 'doc_id is required' }); return; }
+    if (!Number.isFinite(docId)) {
+      res.status(400).json({ error: 'doc_id is required' });
+      return;
+    }
     const doc = db
       .prepare<[number], ReferenceDocRow>('SELECT * FROM reference_docs WHERE id = ?')
       .get(docId);
-    if (!doc) { res.status(404).json({ error: 'Doc not found' }); return; }
+    if (!doc) {
+      res.status(404).json({ error: 'Doc not found' });
+      return;
+    }
 
     const userId = authed(req).user.id;
     void (async () => {
@@ -211,7 +238,7 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
   });
 
   router.delete('/:id/days/:date', (req, res) => {
-    const date = String(req.params.date);
+    const { date } = req.params;
     const mode = req.query.mode === 'leave' ? 'leave' : 'shift';
     const trip = resolveTrip(req.params.id);
     if (!trip) {
@@ -402,9 +429,7 @@ export function deleteDay(
 ): { ok: true; trip: TripRow; deleted_items: number; shifted_items: number } {
   return db.transaction(() => {
     const dayItems = db
-      .prepare<[number, string], ItemRow>(
-        'SELECT * FROM items WHERE trip_id = ? AND day_date = ?',
-      )
+      .prepare<[number, string], ItemRow>('SELECT * FROM items WHERE trip_id = ? AND day_date = ?')
       .all(trip.id, date);
 
     db.prepare('DELETE FROM items WHERE trip_id = ? AND day_date = ?').run(trip.id, date);
@@ -423,9 +448,10 @@ export function deleteDay(
     let nextEnd = trip.end_date;
     if (mode === 'shift') {
       const later = db
-        .prepare<[number, string], ItemRow>(
-          'SELECT id, day_date FROM items WHERE trip_id = ? AND day_date > ? ORDER BY day_date',
-        )
+        .prepare<
+          [number, string],
+          ItemRow
+        >('SELECT id, day_date FROM items WHERE trip_id = ? AND day_date > ? ORDER BY day_date')
         .all(trip.id, date);
       const updateDay = db.prepare('UPDATE items SET day_date = ?, updated_at = ? WHERE id = ?');
       const now = new Date().toISOString();
@@ -505,7 +531,7 @@ function applyDerivation(body: ItemBodyT): ItemBodyT {
   // Title fallback chain: derived (when kind owns it) → user-typed →
   // derived (otherwise) → kind label. Empty strings collapse to nullish
   // so a blank input doesn't beat a real derived value.
-  const userTitle = body.title && body.title.trim() ? body.title.trim() : null;
+  const userTitle = body.title?.trim() ? body.title.trim() : null;
   const derivedTitle = derived.title ?? null;
   const finalTitle = overrideTitle
     ? (derivedTitle ?? userTitle ?? def.label)
@@ -533,12 +559,7 @@ function applyDerivation(body: ItemBodyT): ItemBodyT {
   };
 }
 
-export function createItem(
-  db: DB,
-  tripId: number,
-  body: ItemBodyT,
-  userId: number,
-): ItemRow {
+export function createItem(db: DB, tripId: number, body: ItemBodyT, userId: number): ItemRow {
   const merged = applyDerivation(body);
   const now = new Date().toISOString();
   const tx = db.transaction((): ItemRow => {
@@ -601,16 +622,16 @@ export function updateItem(
     let attrsJson = before.attributes_json;
     if (patch.attributes !== undefined) {
       const merged = applyDerivation({
-        ...next as unknown as ItemBodyT,
+        ...(next as unknown as ItemBodyT),
         attributes: patch.attributes,
       });
       attrsJson = JSON.stringify(merged.attributes ?? {});
-      const def = defForKind(next.kind as ItemKind);
+      const def = defForKind(next.kind);
       // For kinds where the structured form is canonical (derivesTitle /
       // derivesLocation / ownsTime), the derived value wins on attribute
       // edits — that's the whole point of those flags. Otherwise fall
       // back to the existing "fill the hole" behavior.
-      next.title = def.derivesTitle ? merged.title ?? next.title : next.title;
+      next.title = def.derivesTitle ? (merged.title ?? next.title) : next.title;
       next.start_time = def.ownsTime
         ? (merged.start_time ?? null)
         : (next.start_time ?? merged.start_time ?? null);

@@ -50,7 +50,10 @@ export function buildServer(opts: ServerOptions): Express {
   app.use('/api/participants', participantsRouter(opts.db));
 
   if (process.env.NODE_ENV !== 'production') {
-    app.use('/api/dev', devRouter(() => opts.db, opts.dataDir));
+    app.use(
+      '/api/dev',
+      devRouter(() => opts.db, opts.dataDir),
+    );
   }
 
   const webDir = opts.webDir ?? 'web/dist';

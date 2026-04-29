@@ -13,7 +13,6 @@ import type {
   TripRow,
 } from '../types.js';
 import { callMessages } from './client.js';
-import { writeAudit } from '../audit.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SYSTEM_PROMPT = readFileSync(join(here, '..', 'prompts', 'suggest.md'), 'utf-8');
@@ -33,22 +32,22 @@ const ResponseSchema = z.object({ suggestions: z.array(SuggestionSchema) });
  * call Claude with web search + extended thinking, validate, persist
  * suggestions, return the inserted rows.
  */
-export async function runSuggest(
-  db: DB,
-  config: Config,
-  tripId: number,
-): Promise<SuggestionRow[]> {
+export async function runSuggest(db: DB, config: Config, tripId: number): Promise<SuggestionRow[]> {
   const trip = db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?').get(tripId);
   if (!trip) throw new Error(`Trip ${tripId} not found`);
 
   const items = db
-    .prepare<[number], ItemRow>('SELECT * FROM items WHERE trip_id = ? ORDER BY day_date, sort_order, id')
+    .prepare<
+      [number],
+      ItemRow
+    >('SELECT * FROM items WHERE trip_id = ? ORDER BY day_date, sort_order, id')
     .all(tripId);
 
   const refDocs = db
-    .prepare<[number], ReferenceDocRow>(
-      `SELECT * FROM reference_docs WHERE parse_status = 'complete' AND (trip_id IS NULL OR trip_id = ?) ORDER BY uploaded_at DESC LIMIT 6`,
-    )
+    .prepare<
+      [number],
+      ReferenceDocRow
+    >(`SELECT * FROM reference_docs WHERE parse_status = 'complete' AND (trip_id IS NULL OR trip_id = ?) ORDER BY uploaded_at DESC LIMIT 6`)
     .all(tripId);
 
   const refItemsByDoc = new Map<number, ReferenceItemRow[]>();
@@ -56,15 +55,19 @@ export async function runSuggest(
     refItemsByDoc.set(
       doc.id,
       db
-        .prepare<[number], ReferenceItemRow>('SELECT * FROM reference_items WHERE doc_id = ? ORDER BY day_offset, id')
+        .prepare<
+          [number],
+          ReferenceItemRow
+        >('SELECT * FROM reference_items WHERE doc_id = ? ORDER BY day_offset, id')
         .all(doc.id),
     );
   }
 
   const recentDecisions = db
-    .prepare<[number], SuggestionRow>(
-      `SELECT * FROM suggestions WHERE trip_id = ? AND status IN ('accepted', 'rejected') ORDER BY decided_at DESC LIMIT 10`,
-    )
+    .prepare<
+      [number],
+      SuggestionRow
+    >(`SELECT * FROM suggestions WHERE trip_id = ? AND status IN ('accepted', 'rejected') ORDER BY decided_at DESC LIMIT 10`)
     .all(tripId);
 
   const userMessage = buildUserMessage(
@@ -155,7 +158,7 @@ function computeBusyWindows(items: ItemRow[]): BusyWindow[] {
   const out: BusyWindow[] = [];
   for (const i of items) {
     if (!i.start_time) continue;
-    let endTime = i.end_time;
+    const endTime = i.end_time;
     let endDate = i.day_date;
     let crosses = false;
     try {
@@ -166,7 +169,9 @@ function computeBusyWindows(items: ItemRow[]): BusyWindow[] {
         endDate = d.toISOString().slice(0, 10);
         crosses = true;
       }
-    } catch { /* malformed attributes — ignore */ }
+    } catch {
+      /* malformed attributes — ignore */
+    }
     if (endTime && endTime < (i.start_time ?? '')) {
       // Wrap-around clock value (e.g. 23:00 → 02:00) — bumps day by 1
       // unless we already know a longer offset.
@@ -223,7 +228,9 @@ function buildUserMessage(
   const busy = computeBusyWindows(items);
   if (busy.length > 0) {
     lines.push(`\n# Do-not-schedule windows`);
-    lines.push(`(items below already occupy these spans — do NOT propose meals, activities, or transit during them)`);
+    lines.push(
+      `(items below already occupy these spans — do NOT propose meals, activities, or transit during them)`,
+    );
     for (const b of busy) {
       lines.push(`- ${b.from_date} ${b.from_time} → ${b.to_date} ${b.to_time} · "${b.title}"`);
     }
@@ -237,7 +244,9 @@ function buildUserMessage(
       const refItems = refItemsByDoc.get(doc.id) ?? [];
       for (const r of refItems.slice(0, 50)) {
         const day = r.day_offset ? `day ${r.day_offset}` : '—';
-        lines.push(`- ${day} · ${r.kind} · ${r.title}${r.location ? ` @ ${r.location}` : ''}${r.notes ? ` — ${r.notes}` : ''}`);
+        lines.push(
+          `- ${day} · ${r.kind} · ${r.title}${r.location ? ` @ ${r.location}` : ''}${r.notes ? ` — ${r.notes}` : ''}`,
+        );
       }
     }
   }
@@ -260,17 +269,17 @@ function buildUserMessage(
 function extractText(response: unknown): string {
   // response.content is an array of content blocks. We want the text blocks
   // (extended-thinking blocks and tool-use blocks are also present).
-  const r = response as { content?: Array<{ type: string; text?: string }> };
+  const r = response as { content?: { type: string; text?: string }[] };
   const blocks = r.content ?? [];
   return blocks
     .filter((b) => b.type === 'text' && typeof b.text === 'string')
-    .map((b) => b.text as string)
+    .map((b) => b.text!)
     .join('\n');
 }
 
 function extractJson(text: string): string {
   // Be lenient: Claude occasionally wraps JSON in a ```json fence despite
   // the "no fence" instruction. Strip it if present.
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
   return (fenced ? fenced[1] : text).trim();
 }
