@@ -74,6 +74,8 @@ export interface KindDef {
   label: string;
   hint: string | null;
   ownsTime: boolean;
+  derivesTitle: boolean;
+  derivesLocation: boolean;
   fields: KindFieldDef[];
 }
 

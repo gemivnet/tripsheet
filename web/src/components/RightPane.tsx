@@ -81,6 +81,19 @@ function kindOwnsTime(kind: ItemKind): boolean {
   return kind === 'transit' || kind === 'checkin' || kind === 'checkout';
 }
 
+/** Mirrors `derivesTitle: true` on the server's ItemKindDef registry. */
+function kindDerivesTitle(kind: ItemKind): boolean {
+  return kind === 'transit' || kind === 'checkin' || kind === 'checkout' || kind === 'meal';
+}
+
+/** Mirrors `derivesLocation: true` on the server's ItemKindDef registry. */
+function kindDerivesLocation(kind: ItemKind): boolean {
+  return (
+    kind === 'transit' || kind === 'checkin' || kind === 'checkout' ||
+    kind === 'meal' || kind === 'reservation' || kind === 'activity' || kind === 'package'
+  );
+}
+
 // ─── Event tab (edit / add) ──────────────────────────────────────────────────
 
 interface FormState {
@@ -104,6 +117,20 @@ function blankForm(): FormState {
 function formFromItem(item: Item): FormState {
   let attributes: Record<string, unknown> = {};
   try { attributes = JSON.parse(item.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
+  // For kinds where the structured form is the canonical source of date/time
+  // (transit, checkin, checkout — the ownsTime kinds), historical items and
+  // PDF imports may carry day_date/start_time/end_time at the base level
+  // without the corresponding structured fields. Mirror them in so the form
+  // displays the values it's meant to be the source of truth for. The user's
+  // edits flow back through the structured fields, which then re-derive to
+  // base on save — keeping the two in sync without parallel inputs.
+  if (item.kind === 'transit') {
+    if (!attributes.departure_date) attributes.departure_date = item.day_date;
+    if (!attributes.departure_time && item.start_time) attributes.departure_time = item.start_time;
+    if (!attributes.arrival_time && item.end_time) attributes.arrival_time = item.end_time;
+  } else if (item.kind === 'checkin' || item.kind === 'checkout') {
+    if (!attributes.policy_time && item.start_time) attributes.policy_time = item.start_time;
+  }
   return {
     start_time: item.start_time ?? '',
     end_time: item.end_time ?? '',
@@ -168,7 +195,8 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
   }
 
   async function saveNew(): Promise<void> {
-    if (!form.title.trim() || !addDate) return;
+    if (!addDate) return;
+    if (!form.title.trim() && !kindDerivesTitle(form.kind)) return;
     const created = await createItem({
       day_date: addDate,
       title: form.title.trim(),
@@ -293,16 +321,20 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         />
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <label style={labelStyle}>Title</label>
-        <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Item name…"
-          style={{ ...inputStyle, fontSize: 15, fontWeight: 600 }} />
-      </div>
+      {!kindDerivesTitle(form.kind) && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Title</label>
+          <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Item name…"
+            style={{ ...inputStyle, fontSize: 15, fontWeight: 600 }} />
+        </div>
+      )}
 
-      <div style={{ marginBottom: 14 }}>
-        <label style={labelStyle}>Location</label>
-        <input value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Where?" style={inputStyle} />
-      </div>
+      {!kindDerivesLocation(form.kind) && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Location</label>
+          <input value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Where?" style={inputStyle} />
+        </div>
+      )}
 
       {isEditing && selected && (
         <TimezoneRow item={selected} updateItem={updateItem} />
@@ -368,21 +400,24 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         />
       </div>
 
-      {isAdding && (
-        <button
-          onClick={() => void saveNew()}
-          disabled={!form.title.trim()}
-          style={{
-            width: '100%', padding: 12, borderRadius: 10, border: 'none',
-            background: form.title.trim() ? 'var(--accent)' : 'var(--border)',
-            color: '#fff', fontSize: 14,
-            cursor: form.title.trim() ? 'pointer' : 'default',
-            fontWeight: 700, transition: 'all 0.15s',
-          }}
-        >
-          Add to Timeline
-        </button>
-      )}
+      {isAdding && (() => {
+        const canSave = !!form.title.trim() || kindDerivesTitle(form.kind);
+        return (
+          <button
+            onClick={() => void saveNew()}
+            disabled={!canSave}
+            style={{
+              width: '100%', padding: 12, borderRadius: 10, border: 'none',
+              background: canSave ? 'var(--accent)' : 'var(--border)',
+              color: '#fff', fontSize: 14,
+              cursor: canSave ? 'pointer' : 'default',
+              fontWeight: 700, transition: 'all 0.15s',
+            }}
+          >
+            Add to Timeline
+          </button>
+        );
+      })()}
     </div>
   );
 }

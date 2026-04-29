@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ItemKind } from '../types.js';
 import { tzForIata } from './iataTz.js';
+import { normalizeAirlineCode, formatFlightNumber } from './airlines.js';
 
 /**
  * Per-kind item schemas. Each `ItemKindDef` declares a Zod schema for
@@ -36,6 +37,7 @@ export interface DerivedFields {
   day_date?: string | null;
   start_time?: string | null;
   end_time?: string | null;
+  title?: string | null;
   location?: string | null;
   hours?: string | null;
   cost?: string | null;
@@ -57,10 +59,31 @@ export interface ItemKindDef {
    * top-level + per-kind time fields (e.g. flight has departure_time).
    */
   ownsTime?: boolean;
+  /**
+   * If true, the generic "Title" field is hidden in the editor and the
+   * derived title from the kind's structured fields wins on save. Use
+   * for kinds where the structured attributes fully determine the
+   * canonical name (flight: "ANA NH109 · ORD → LAX"; check-in:
+   * property name; meal: "Dinner · Joe's").
+   */
+  derivesTitle?: boolean;
+  /**
+   * If true, the generic "Location" field is hidden in the editor and
+   * the derived location from the kind's structured fields wins on
+   * save. Use for kinds where address/venue/operator IS the location.
+   */
+  derivesLocation?: boolean;
   /** Form fields, in render order. */
   fields: FieldDef[];
   /** Zod schema validating the attributes blob. All fields optional. */
   attrs: z.ZodType<Record<string, unknown>>;
+  /**
+   * Optional canonicalization pass over the attributes blob. Runs after
+   * Zod parsing and before `derive()`. Use to fold known free-text
+   * synonyms onto a canonical form (e.g. airline name → IATA code,
+   * "AA2364" → "AA 2364"). Must be idempotent.
+   */
+  normalizeAttrs?: (attrs: Record<string, unknown>) => Record<string, unknown>;
   /**
    * Compute base-item fields from attributes. Returned fields are
    * applied to the item only when the corresponding base field is
@@ -96,6 +119,8 @@ const flight: ItemKindDef = {
   subtype: 'flight',
   label: 'Flight',
   ownsTime: true,
+  derivesTitle: true,
+  derivesLocation: true,
   hint: 'Time zones auto-fill from IATA codes. Departure date/time drive the item\'s position on the timeline.',
   fields: [
     { name: 'airline',           label: 'Airline',           type: 'text',   placeholder: 'e.g. ANA, Delta' },
@@ -111,18 +136,48 @@ const flight: ItemKindDef = {
     // Confirmation # is the base item field — shown in top-level form, not duplicated here.
   ],
   attrs: FlightAttrs,
+  normalizeAttrs(attrs) {
+    const a = { ...attrs } as z.infer<typeof FlightAttrs>;
+    // Fold airline (free text) → IATA code, and reformat flight_number
+    // as "XX 1234" so timeline display is uniform regardless of how the
+    // user typed it. Idempotent.
+    const code = normalizeAirlineCode(a.airline ?? null);
+    if (code) a.airline = code;
+    const formatted = formatFlightNumber(a.airline ?? null, a.flight_number ?? null);
+    if (formatted) {
+      // formatFlightNumber returns "XX 1234" — split off the prefix when
+      // it matches the (now-normalized) airline so we don't double-store.
+      const m = formatted.match(/^([A-Z0-9]{2,3})\s+(\d+)$/i);
+      if (m) {
+        a.airline = a.airline ?? m[1];
+        a.flight_number = m[2];
+      } else {
+        a.flight_number = formatted;
+      }
+    }
+    // Uppercase IATA airport codes.
+    if (a.departure_airport) a.departure_airport = a.departure_airport.toUpperCase();
+    if (a.arrival_airport) a.arrival_airport = a.arrival_airport.toUpperCase();
+    return a as Record<string, unknown>;
+  },
   derive(attrs) {
     const a = attrs as z.infer<typeof FlightAttrs>;
     const tz = tzForIata(a.departure_airport ?? null);
     const end_tz = tzForIata(a.arrival_airport ?? null);
+    const route = a.departure_airport && a.arrival_airport
+      ? `${a.departure_airport} → ${a.arrival_airport}`
+      : null;
+    const flightCode = formatFlightNumber(a.airline ?? null, a.flight_number ?? null);
+    const title = route
+      ? (flightCode ? `${flightCode} · ${route}` : route)
+      : (flightCode || null);
     return {
       tz, end_tz,
       day_date: a.departure_date ?? null,
       start_time: a.departure_time ?? null,
       end_time: a.arrival_time ?? null,
-      location: a.departure_airport && a.arrival_airport
-        ? `${a.departure_airport} → ${a.arrival_airport}`
-        : null,
+      title,
+      location: route,
       // Bridge: old items may have stored confirmation inside attributes_json.
       confirmation: a.confirmation ?? null,
     };
@@ -151,6 +206,8 @@ function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string)
     // policy_time drives the item's timeline position (ownsTime), so the
     // generic "Time" field is hidden to avoid showing the same value twice.
     ownsTime: true,
+    derivesTitle: true,
+    derivesLocation: true,
     fields: [
       { name: 'property_name', label: 'Property',         type: 'text', placeholder: 'Hotel / rental name' },
       { name: 'address',       label: 'Address',          type: 'text' },
@@ -164,8 +221,11 @@ function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string)
     attrs: LodgingAttrs,
     derive(attrs) {
       const a = attrs as z.infer<typeof LodgingAttrs>;
+      const property = a.property_name ?? a.address ?? null;
+      const action = kind === 'checkin' ? 'Check-in' : 'Check-out';
       return {
-        location: a.property_name ?? a.address ?? null,
+        title: property ? `${action} · ${property}` : action,
+        location: property,
         start_time: a.policy_time ?? null,
         cost: a.rate ?? null,
         // Bridge: old items may have stored confirmation inside attributes_json.
@@ -193,6 +253,8 @@ const meal: ItemKindDef = {
   kind: 'meal',
   subtype: 'meal',
   label: 'Meal',
+  derivesTitle: true,
+  derivesLocation: true,
   hint: 'Breakfast, lunch, dinner, drinks. Time + reservation are both optional.',
   fields: [
     { name: 'meal_type',   label: 'Which meal',   type: 'select', options: ['breakfast', 'brunch', 'lunch', 'dinner', 'late-night', 'snack', 'drinks'] },
@@ -207,7 +269,11 @@ const meal: ItemKindDef = {
   attrs: MealAttrs,
   derive(attrs) {
     const a = attrs as z.infer<typeof MealAttrs>;
+    const mealLabel = a.meal_type
+      ? a.meal_type[0].toUpperCase() + a.meal_type.slice(1)
+      : 'Meal';
     return {
+      title: a.venue_name ? `${mealLabel} · ${a.venue_name}` : mealLabel,
       location: a.venue_name ?? a.address ?? null,
     };
   },
@@ -232,6 +298,7 @@ const reservation: ItemKindDef = {
   kind: 'reservation',
   subtype: 'reservation',
   label: 'Reservation',
+  derivesLocation: true,
   hint: 'Tours, shows, spa, non-meal bookings. For meals, use the Meal kind instead.',
   fields: [
     { name: 'venue_name',  label: 'Venue',        type: 'text' },
@@ -273,6 +340,7 @@ const activity: ItemKindDef = {
   kind: 'activity',
   subtype: 'activity',
   label: 'Activity',
+  derivesLocation: true,
   hint: 'Duration auto-fills end time. Opens/Closes are venue hours, not your visit time.',
   fields: [
     { name: 'venue_name',      label: 'Place',           type: 'text' },
@@ -321,6 +389,7 @@ const packageDef: ItemKindDef = {
   kind: 'package',
   subtype: 'package',
   label: 'Multi-day package',
+  derivesLocation: true,
   hint: 'Tours, cruises, all-inclusive resorts, retreats. Spans multiple days; can include lodging and meals.',
   fields: [
     { name: 'operator',         label: 'Operator',          type: 'text',   placeholder: 'Tour company / resort / cruise line' },

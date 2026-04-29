@@ -54,16 +54,18 @@ async function main(): Promise<void> {
 
   const updateStmt = db.prepare(`
     UPDATE items SET
-      tz           = COALESCE(tz, ?),
-      end_tz       = COALESCE(end_tz, ?),
-      day_date     = COALESCE(?, day_date),
-      start_time   = COALESCE(start_time, ?),
-      end_time     = COALESCE(end_time, ?),
-      location     = COALESCE(location, ?),
-      hours        = COALESCE(hours, ?),
-      cost         = COALESCE(cost, ?),
-      confirmation = COALESCE(confirmation, ?),
-      updated_at   = datetime('now')
+      tz              = COALESCE(tz, ?),
+      end_tz          = COALESCE(end_tz, ?),
+      day_date        = ?,
+      start_time      = ?,
+      end_time        = ?,
+      title           = ?,
+      location        = ?,
+      hours           = COALESCE(hours, ?),
+      cost            = COALESCE(cost, ?),
+      confirmation    = COALESCE(confirmation, ?),
+      attributes_json = ?,
+      updated_at      = datetime('now')
     WHERE id = ?
   `);
 
@@ -73,19 +75,39 @@ async function main(): Promise<void> {
     catch { skipped++; continue; }
 
     const def = defForKind(item.kind as ItemKind);
-    if (!def.derive) { skipped++; continue; }
+    if (!def.derive && !def.normalizeAttrs) { skipped++; continue; }
 
-    const derived = def.derive(attrs, { start_time: item.start_time });
+    // Run the kind's canonicalization pass over attrs (e.g. airline name
+    // → IATA code) before deriving so backfilled rows pick up the same
+    // normalization that runtime saves do.
+    const normalized = def.normalizeAttrs ? def.normalizeAttrs(attrs) : attrs;
+    const derived = def.derive ? def.derive(normalized, { start_time: item.start_time }) : {};
+    const attrsChanged = JSON.stringify(normalized) !== item.attributes_json;
 
-    // Only apply fields where the derived value is non-null and the current
-    // base column is null (user values always win).
+    // For derive-owning kinds (derivesTitle / derivesLocation / ownsTime),
+    // the derived value WINS — that's the whole architecture. For other
+    // kinds, only fill base columns that are null.
+    const newTitle = def.derivesTitle ? (derived.title ?? item.title) : item.title;
+    const newLocation = def.derivesLocation
+      ? (derived.location ?? item.location)
+      : (item.location ?? derived.location ?? null);
+    const newDayDate = def.ownsTime && derived.day_date ? derived.day_date : item.day_date;
+    const newStartTime = def.ownsTime
+      ? (derived.start_time ?? null)
+      : (item.start_time ?? derived.start_time ?? null);
+    const newEndTime = def.ownsTime
+      ? (derived.end_time ?? item.end_time ?? null)
+      : (item.end_time ?? derived.end_time ?? null);
+
     const willUpdate =
+      attrsChanged ||
+      newTitle !== item.title ||
+      newLocation !== item.location ||
+      newDayDate !== item.day_date ||
+      newStartTime !== item.start_time ||
+      newEndTime !== item.end_time ||
       (derived.tz && !item.tz) ||
       (derived.end_tz && !item.end_tz) ||
-      (derived.day_date && item.day_date !== derived.day_date) ||
-      (derived.start_time && !item.start_time) ||
-      (derived.end_time && !item.end_time) ||
-      (derived.location && !item.location) ||
       (derived.hours && !item.hours) ||
       (derived.cost && !item.cost) ||
       (derived.confirmation && !item.confirmation);
@@ -95,18 +117,20 @@ async function main(): Promise<void> {
     updateStmt.run(
       derived.tz ?? null,
       derived.end_tz ?? null,
-      derived.day_date ?? null,
-      derived.start_time ?? null,
-      derived.end_time ?? null,
-      derived.location ?? null,
+      newDayDate,
+      newStartTime,
+      newEndTime,
+      newTitle,
+      newLocation,
       derived.hours ?? null,
       derived.cost ?? null,
       derived.confirmation ?? null,
+      JSON.stringify(normalized),
       item.id,
     );
 
     updated++;
-    console.log(`  ✓ item ${item.id} (${item.kind}) "${item.title}"`);
+    console.log(`  ✓ item ${item.id} (${item.kind}) "${item.title}" → "${newTitle}"`);
   }
 
   console.log(`\nDone — ${updated} updated, ${skipped} skipped (already derived or no attrs).`);

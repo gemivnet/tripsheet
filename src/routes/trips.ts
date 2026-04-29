@@ -24,7 +24,10 @@ const TripBody = z.object({
 const ItemBody = z.object({
   day_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   kind: z.enum(ITEM_KINDS as readonly [string, ...string[]]),
-  title: z.string().min(1).max(300),
+  // Allowed empty so kinds with derivesTitle (flight, checkin, checkout, meal)
+  // can be created without the user typing a title — applyDerivation fills it.
+  // Falls back to the kind's label if derivation also produces nothing.
+  title: z.string().max(300).optional().default(''),
   start_time: z.string().max(20).nullable().optional(),
   end_time: z.string().max(20).nullable().optional(),
   location: z.string().max(300).nullable().optional(),
@@ -74,6 +77,8 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
         label: k.label,
         hint: k.hint ?? null,
         ownsTime: !!k.ownsTime,
+        derivesTitle: !!k.derivesTitle,
+        derivesLocation: !!k.derivesLocation,
         fields: k.fields,
       })),
     });
@@ -469,16 +474,31 @@ export function deleteDay(
  */
 function applyDerivation(body: ItemBodyT): ItemBodyT {
   const def = defForKind(body.kind as ItemKind);
-  const attrs = safeParseAttrs(body.kind as ItemKind, body.attributes ?? {});
+  const parsed = safeParseAttrs(body.kind as ItemKind, body.attributes ?? {});
+  // Run the per-kind canonicalization pass before deriving so the values
+  // we store and the values we display are always the normalized ones
+  // (e.g. "Southwest" → "WN", "AA2364" → "AA 2364").
+  const attrs = def.normalizeAttrs ? def.normalizeAttrs(parsed) : parsed;
   // Pass start_time so non-ownsTime kinds (e.g. activity) can derive end_time.
   const derived = def.derive ? def.derive(attrs, { start_time: body.start_time }) : {};
-  // For kinds that own their own time inputs (flight, checkin, checkout),
-  // the derived value WINS over the user's top-level field — there's only
-  // one canonical place to set it (the kind-specific field).
+  // For kinds whose dedicated form fields are the canonical source of
+  // truth (flight: airline + IATA codes; check-in: property name), the
+  // derived value WINS over the body — there's only one place to type it.
   const overrideTime = !!def.ownsTime;
+  const overrideTitle = !!def.derivesTitle;
+  const overrideLocation = !!def.derivesLocation;
+  // Title fallback chain: derived (when kind owns it) → user-typed →
+  // derived (otherwise) → kind label. Empty strings collapse to nullish
+  // so a blank input doesn't beat a real derived value.
+  const userTitle = body.title && body.title.trim() ? body.title.trim() : null;
+  const derivedTitle = derived.title ?? null;
+  const finalTitle = overrideTitle
+    ? (derivedTitle ?? userTitle ?? def.label)
+    : (userTitle ?? derivedTitle ?? def.label);
   return {
     ...body,
     attributes: attrs,
+    title: finalTitle,
     day_date: (overrideTime && derived.day_date) || body.day_date,
     start_time: overrideTime
       ? (derived.start_time ?? body.start_time ?? null)
@@ -486,7 +506,9 @@ function applyDerivation(body: ItemBodyT): ItemBodyT {
     end_time: overrideTime
       ? (derived.end_time ?? body.end_time ?? null)
       : (body.end_time ?? derived.end_time ?? null),
-    location: body.location ?? derived.location ?? null,
+    location: overrideLocation
+      ? (derived.location ?? body.location ?? null)
+      : (body.location ?? derived.location ?? null),
     hours: body.hours ?? derived.hours ?? null,
     cost: body.cost ?? derived.cost ?? null,
     tz: body.tz ?? derived.tz ?? null,
@@ -568,9 +590,22 @@ export function updateItem(
         attributes: patch.attributes,
       });
       attrsJson = JSON.stringify(merged.attributes ?? {});
-      next.start_time = next.start_time ?? merged.start_time ?? null;
-      next.end_time = next.end_time ?? merged.end_time ?? null;
-      next.location = next.location ?? merged.location ?? null;
+      const def = defForKind(next.kind as ItemKind);
+      // For kinds where the structured form is canonical (derivesTitle /
+      // derivesLocation / ownsTime), the derived value wins on attribute
+      // edits — that's the whole point of those flags. Otherwise fall
+      // back to the existing "fill the hole" behavior.
+      next.title = def.derivesTitle ? merged.title ?? next.title : next.title;
+      next.start_time = def.ownsTime
+        ? (merged.start_time ?? null)
+        : (next.start_time ?? merged.start_time ?? null);
+      next.end_time = def.ownsTime
+        ? (merged.end_time ?? next.end_time ?? null)
+        : (next.end_time ?? merged.end_time ?? null);
+      next.day_date = def.ownsTime ? (merged.day_date ?? next.day_date) : next.day_date;
+      next.location = def.derivesLocation
+        ? (merged.location ?? next.location ?? null)
+        : (next.location ?? merged.location ?? null);
       next.hours = next.hours ?? merged.hours ?? null;
       next.cost = next.cost ?? merged.cost ?? null;
       next.tz = next.tz ?? merged.tz ?? null;
