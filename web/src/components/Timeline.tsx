@@ -207,14 +207,12 @@ function DaySection({
             const prevRowLastItem = rowIdx > 0 ? rows[rowIdx - 1][rows[rowIdx - 1].length - 1] : null;
             const firstItem = row[0];
             const showAnytimeDivider = !!prevRowLastItem && !!prevRowLastItem.start_time && !firstItem?.start_time;
-            // Synthetic markers (check-in opens, arrival shadows) are not
-            // real schedule entries — measuring "X between" against them
-            // adds noise without meaning.
-            const eitherIsSynthetic = !!(
-              prevRowLastItem?._checkInOpen || prevRowLastItem?._arrivalShadow ||
-              firstItem?._checkInOpen || firstItem?._arrivalShadow
-            );
-            const gap = !eitherIsSynthetic && prevRowLastItem && firstItem?.start_time
+            // Online check-in markers aren't real schedule entries — skip
+            // gap math against them. Arrival shadows ARE real (the user
+            // has landed and is waiting), so layovers between an arrival
+            // and the next flight should still surface as "X between".
+            const eitherIsCheckInMarker = !!(prevRowLastItem?._checkInOpen || firstItem?._checkInOpen);
+            const gap = !eitherIsCheckInMarker && prevRowLastItem && firstItem?.start_time
               && (prevRowLastItem.end_time || prevRowLastItem.start_time)
               ? gapMinutes(prevRowLastItem, firstItem)
               : null;
