@@ -90,7 +90,7 @@ export function getJobs(): AiJob[] {
 }
 
 export interface Exchange {
-  id: number;
+  id: number | string;
   at: string;
   caller: string;
   model: string;
@@ -99,6 +99,8 @@ export interface Exchange {
   request: unknown;
   response: unknown;
   error?: string;
+  in_flight?: boolean;
+  partial_text?: string;
 }
 const exchanges: Exchange[] = [];
 let exchangeSeq = 0;
@@ -115,6 +117,22 @@ export function getExchanges(): Exchange[] {
 }
 export function getLastExchange(): Exchange | null {
   return exchanges.length > 0 ? exchanges[exchanges.length - 1] : null;
+}
+
+const inFlight = new Map<string, Exchange>();
+function inFlightId(jobId: string): string {
+  return `live:${jobId}`;
+}
+export function getInFlightExchanges(): Exchange[] {
+  // Newest first to match getExchanges() ordering.
+  return Array.from(inFlight.values()).sort((a, b) => b.at.localeCompare(a.at));
+}
+export function findExchangeById(id: number | string): Exchange | null {
+  if (typeof id === 'string' && id.startsWith('live:')) {
+    return inFlight.get(id.slice('live:'.length)) ?? null;
+  }
+  const numeric = typeof id === 'number' ? id : Number(id);
+  return exchanges.find((e) => e.id === numeric) ?? null;
 }
 
 // ─── concurrency-limited queue with streaming ────────────────────────────────
@@ -181,7 +199,18 @@ async function runTask(task: PendingTask): Promise<void> {
       logEvent({
         kind: 'started', caller: job.caller, job_id: job.id, attempt: job.attempt,
       });
+      inFlight.set(job.id, {
+        id: inFlightId(job.id),
+        at: job.started_at,
+        caller: job.caller,
+        model: finalBody.model as string,
+        request: redactRequest(finalBody),
+        response: null,
+        in_flight: true,
+        partial_text: '',
+      });
       const response = await streamCall(job, finalBody);
+      inFlight.delete(job.id);
       const r = response as { usage?: { input_tokens?: number; output_tokens?: number } };
       usage.input_tokens += r.usage?.input_tokens ?? 0;
       usage.output_tokens += r.usage?.output_tokens ?? 0;
@@ -207,6 +236,7 @@ async function runTask(task: PendingTask): Promise<void> {
       const retryable = status === 429 || status === 529 || status === 503;
       if (!retryable || job.attempt >= MAX) {
         const msg = e instanceof Error ? e.message : String(e);
+        inFlight.delete(job.id);
         recordExchange({
           at: new Date().toISOString(),
           caller: job.caller,
@@ -231,6 +261,12 @@ async function runTask(task: PendingTask): Promise<void> {
         message: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200),
       });
       await new Promise((r) => setTimeout(r, backoffMs));
+      // Reset live-exchange state for the next attempt.
+      const live = inFlight.get(job.id);
+      if (live) {
+        live.partial_text = '';
+        live.at = new Date().toISOString();
+      }
       job.status = 'queued';
     }
   }
@@ -254,6 +290,11 @@ async function streamCall(
   stream.on('text', (chunk: string) => {
     outTokens += Math.max(1, Math.round(chunk.length / 4));
     job.output_tokens = outTokens;
+    const live = inFlight.get(job.id);
+    if (live) {
+      live.partial_text = (live.partial_text ?? '') + chunk;
+      live.output_tokens = outTokens;
+    }
     if (outTokens - lastEmitted >= 100) {
       lastEmitted = outTokens;
       logEvent({

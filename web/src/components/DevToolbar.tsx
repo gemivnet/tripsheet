@@ -19,7 +19,7 @@ export function DevToolbar(): JSX.Element | null {
   const [available, setAvailable] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'queue' | 'log' | 'exchanges'>('queue');
-  const [pickedExchangeId, setPickedExchangeId] = useState<number | null>(null);
+  const [pickedExchangeId, setPickedExchangeId] = useState<number | string | null>(null);
   const [pickedExchange, setPickedExchange] = useState<ExchangeFull | null>(null);
   const [confirmNuke, setConfirmNuke] = useState(false);
 
@@ -280,21 +280,32 @@ function ExchangesPanel({
   summaries, pickedId, pickedFull, onPick,
 }: {
   summaries: DevState['exchanges'];
-  pickedId: number | null;
+  pickedId: number | string | null;
   pickedFull: ExchangeFull | null;
-  onPick: (id: number | null) => void | Promise<void>;
+  onPick: (id: number | string | null) => void | Promise<void>;
 }): JSX.Element {
-  // Auto-select latest when nothing picked yet.
+  // Auto-select latest when nothing picked yet, or when the picked id is
+  // no longer present (e.g. a live: entry just completed and was replaced
+  // by its numeric counterpart at the top of the list).
   useEffect(() => {
-    if (pickedId == null && summaries.length > 0) {
-      void onPick(summaries[0].id);
-    }
+    if (summaries.length === 0) return;
+    const stillThere = pickedId != null && summaries.some((s) => s.id === pickedId);
+    if (!stillThere) void onPick(summaries[0].id);
   }, [summaries.length === 0 ? null : summaries[0]?.id]);
+
+  // While an in-flight exchange is selected, re-fetch it so partial_text
+  // grows live in the response pane.
+  useEffect(() => {
+    if (pickedId == null) return;
+    if (typeof pickedId !== 'string' || !pickedId.startsWith('live:')) return;
+    const t = setInterval(() => { void onPick(pickedId); }, 750);
+    return () => clearInterval(t);
+  }, [pickedId]);
 
   if (summaries.length === 0) {
     return (
       <div style={{ color: 'oklch(60% 0.04 65)' }}>
-        no completed AI calls yet — switch to <strong>queue</strong> to see calls in flight
+        no AI calls yet
       </div>
     );
   }
@@ -303,12 +314,17 @@ function ExchangesPanel({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <select
           value={pickedId ?? ''}
-          onChange={(e) => void onPick(e.target.value ? Number(e.target.value) : null)}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) { void onPick(null); return; }
+            void onPick(v.startsWith('live:') ? v : Number(v));
+          }}
           style={{ ...btn, padding: '3px 6px', fontSize: 11 }}
         >
           {summaries.map((s) => (
-            <option key={s.id} value={s.id}>
+            <option key={String(s.id)} value={String(s.id)}>
               {s.at.slice(11, 19)} · {s.caller} · in {s.input_tokens ?? '?'} / out {s.output_tokens ?? '?'}
+              {s.in_flight ? ' · streaming…' : ''}
               {s.error ? ' · ERROR' : ''}
             </option>
           ))}
@@ -331,8 +347,14 @@ function ExchangesPanel({
               <pre style={preStyle}>{JSON.stringify(pickedFull.request, null, 2)}</pre>
             </div>
             <div>
-              <div style={{ fontWeight: 700, marginBottom: 3, color: 'oklch(80% 0.04 65)' }}>response</div>
-              <pre style={preStyle}>{JSON.stringify(pickedFull.response, null, 2)}</pre>
+              <div style={{ fontWeight: 700, marginBottom: 3, color: 'oklch(80% 0.04 65)' }}>
+                response{pickedFull.in_flight ? ' · streaming…' : ''}
+              </div>
+              <pre style={preStyle}>
+                {pickedFull.in_flight
+                  ? (pickedFull.partial_text ?? '')
+                  : JSON.stringify(pickedFull.response, null, 2)}
+              </pre>
             </div>
           </div>
         </div>

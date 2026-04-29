@@ -192,6 +192,11 @@ export const api = {
       `/api/trips/${id}/days/${date}?mode=${mode}`,
       { method: 'DELETE' },
     ),
+  reimportTrip: (tripId: number, docId: number) =>
+    request<{ ok: true; deleted: number; created: number }>(
+      `/api/trips/${tripId}/reimport`,
+      { method: 'POST', body: JSON.stringify({ doc_id: docId }) },
+    ),
 
   createItem: (tripId: number, body: Partial<Item>) =>
     request<{ item: Item }>(`/api/trips/${tripId}/items`, { method: 'POST', body: JSON.stringify(body) }),
@@ -265,8 +270,8 @@ export const api = {
     request<{ ok: true; concurrency: number }>('/api/dev/ai/concurrency', {
       method: 'POST', body: JSON.stringify({ n }),
     }),
-  devGetExchange: (id: number) =>
-    request<{ exchange: ExchangeFull }>(`/api/dev/exchanges/${id}`),
+  devGetExchange: (id: number | string) =>
+    request<{ exchange: ExchangeFull }>(`/api/dev/exchanges/${encodeURIComponent(String(id))}`),
   devPauseAi: (paused: boolean) =>
     request<{ ok: true; paused: boolean }>('/api/dev/ai/pause', {
       method: 'POST', body: JSON.stringify({ paused }),
@@ -318,16 +323,18 @@ export interface DevState {
 }
 
 export interface ExchangeSummary {
-  id: number;
+  id: number | string;
   at: string;
   caller: string;
   model: string;
   input_tokens?: number;
   output_tokens?: number;
   error?: string;
+  in_flight?: boolean;
 }
 
 export interface ExchangeFull extends ExchangeSummary {
   request: unknown;
   response: unknown;
+  partial_text?: string;
 }

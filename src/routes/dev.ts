@@ -13,6 +13,8 @@ import {
   resetUsage,
   getLastExchange,
   getExchanges,
+  getInFlightExchanges,
+  findExchangeById,
   getJobs,
   getEvents,
   getConcurrency,
@@ -42,7 +44,7 @@ export function devRouter(getDb: () => DB, dataDir: string): Router {
       jobs: getJobs(),
       events: getEvents(Number.isFinite(sinceId) ? sinceId : 0),
       last_exchange: getLastExchange(),
-      exchanges: getExchanges().map((e) => ({
+      exchanges: [...getInFlightExchanges(), ...getExchanges()].map((e) => ({
         id: e.id,
         at: e.at,
         caller: e.caller,
@@ -50,13 +52,15 @@ export function devRouter(getDb: () => DB, dataDir: string): Router {
         input_tokens: e.input_tokens,
         output_tokens: e.output_tokens,
         error: e.error,
+        in_flight: e.in_flight,
       })),
     });
   });
 
   router.get('/exchanges/:id', (req, res) => {
-    const id = Number(req.params.id);
-    const ex = getExchanges().find((e) => e.id === id);
+    const raw = req.params.id;
+    const id: number | string = raw.startsWith('live:') ? raw : Number(raw);
+    const ex = findExchangeById(id);
     if (!ex) {
       res.status(404).json({ error: 'Exchange not found' });
       return;
