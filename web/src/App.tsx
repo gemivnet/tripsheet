@@ -7,12 +7,42 @@ import { Avatar } from './components/shared.js';
 import { DevToolbar } from './components/DevToolbar.js';
 import { ToastProvider } from './components/Toast.js';
 
-type View = { kind: 'trips' } | { kind: 'trip'; id: number };
+type View = { kind: 'trips' } | { kind: 'trip'; id: number | string };
+
+/**
+ * Decide which view to mount on first load (and on browser back/forward)
+ * by looking at the URL pathname. `/t/<slug>` opens that trip; anything
+ * else falls back to the trips index. We accept the slug as the trip
+ * locator both in the URL and in /api/trips/:id, so the SPA can fetch
+ * the trip without first translating slug → numeric id.
+ */
+function viewFromPath(): View {
+  const m = window.location.pathname.match(/^\/t\/([0-9A-Za-z]+)\/?$/);
+  if (m) return { kind: 'trip', id: m[1] };
+  return { kind: 'trips' };
+}
+
+function pushView(v: View): void {
+  const target = v.kind === 'trip' ? `/t/${v.id}` : '/';
+  if (window.location.pathname !== target) {
+    window.history.pushState({}, '', target);
+  }
+}
 
 export function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<View>({ kind: 'trips' });
+  const [view, setViewState] = useState<View>(viewFromPath);
+
+  // Single setter that also keeps the address bar in sync. Browser back/
+  // forward triggers popstate, which re-reads the URL into state.
+  const setView = (v: View): void => { pushView(v); setViewState(v); };
+
+  useEffect(() => {
+    const onPop = (): void => setViewState(viewFromPath());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
     api
@@ -33,7 +63,7 @@ export function App(): JSX.Element {
     return (
       <ToastProvider>
         <TripEditorPage
-          tripId={view.id}
+          tripIdOrSlug={view.id}
           user={user}
           onBack={() => setView({ kind: 'trips' })}
           onLogout={() =>

@@ -53,6 +53,8 @@ export interface UserRow {
 
 export interface TripRow {
   id: number;
+  /** Short URL-safe id used in the address bar so refresh keeps the user on the same trip. */
+  slug: string | null;
   name: string;
   start_date: string;
   end_date: string;

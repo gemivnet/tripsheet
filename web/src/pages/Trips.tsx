@@ -3,7 +3,7 @@ import { api, type ReferenceDoc, type Trip } from '../api.js';
 import { inputStyle, labelStyle } from '../components/shared.js';
 import { UploadDrawer } from '../components/RightPane.js';
 
-export function TripsPage({ onOpen }: { onOpen: (id: number) => void }): JSX.Element {
+export function TripsPage({ onOpen }: { onOpen: (idOrSlug: number | string) => void }): JSX.Element {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -77,7 +77,7 @@ export function TripsPage({ onOpen }: { onOpen: (id: number) => void }): JSX.Ele
       ) : (
         <div className="trips-list">
           {trips.map((t) => (
-            <TripCard key={t.id} trip={t} onOpen={() => onOpen(t.id)} onDeleted={refreshTrips} />
+            <TripCard key={t.id} trip={t} onOpen={() => onOpen(t.slug ?? t.id)} onDeleted={refreshTrips} />
           ))}
         </div>
       )}
@@ -89,7 +89,7 @@ export function TripsPage({ onOpen }: { onOpen: (id: number) => void }): JSX.Ele
             onCreated={(t) => {
               setTrips((prev) => [t, ...prev]);
               setCreating(false);
-              onOpen(t.id);
+              onOpen(t.slug ?? t.id);
             }}
           />
         </div>
@@ -181,7 +181,7 @@ function DocRow({
 }: {
   doc: ReferenceDoc;
   onReparsed: () => Promise<void>;
-  onOpenTrip?: (id: number) => void;
+  onOpenTrip?: (idOrSlug: number | string) => void;
 }): JSX.Element {
   const [reparsing, setReparsing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);

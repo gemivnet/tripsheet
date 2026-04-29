@@ -5,7 +5,7 @@ import { dbPath, openDb } from './db/index.js';
 import { migrate } from './db/migrate.js';
 import { buildServer } from './server.js';
 import { scanExistingUploads } from './boot-scan.js';
-import { backfillItemDerivations } from './boot-backfill.js';
+import { backfillItemDerivations, backfillTripSlugs } from './boot-backfill.js';
 
 async function main(): Promise<void> {
   const configPath = process.env.CONFIG_PATH ?? 'config.yaml';
@@ -34,6 +34,11 @@ async function main(): Promise<void> {
   const created = scanExistingUploads(db, dataDir);
   if (created > 0) {
     console.log(`Queued ${created} existing upload(s) for parsing.`);
+  }
+
+  const slugs = backfillTripSlugs(db);
+  if (slugs.updated > 0) {
+    console.log(`Assigned slugs to ${slugs.updated} pre-existing trip(s).`);
   }
 
   const backfill = backfillItemDerivations(db);

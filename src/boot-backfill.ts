@@ -1,6 +1,26 @@
 import type { DB } from './db/index.js';
 import { defForKind } from './itemKinds/index.js';
 import type { ItemKind } from './types.js';
+import { generateUniqueTripSlug } from './slug.js';
+
+/**
+ * Assign URL-safe slugs to any pre-existing trips that don't have one
+ * yet. Slugs are required for the SPA's "open this trip via URL" flow,
+ * so without backfill, a trip created before the migration would never
+ * get one. Idempotent.
+ */
+export function backfillTripSlugs(db: DB): { updated: number } {
+  const rows = db
+    .prepare<[], { id: number }>(`SELECT id FROM trips WHERE slug IS NULL`)
+    .all();
+  if (rows.length === 0) return { updated: 0 };
+  const update = db.prepare('UPDATE trips SET slug = ? WHERE id = ?');
+  const tx = db.transaction(() => {
+    for (const r of rows) update.run(generateUniqueTripSlug(db), r.id);
+  });
+  tx();
+  return { updated: rows.length };
+}
 
 interface ItemRow {
   id: number;

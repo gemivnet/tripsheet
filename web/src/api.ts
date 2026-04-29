@@ -6,6 +6,7 @@ export interface User {
 
 export interface Trip {
   id: number;
+  slug: string | null;
   name: string;
   start_date: string;
   end_date: string;
@@ -169,8 +170,8 @@ export const api = {
   listItemKinds: () => request<{ kinds: KindDef[] }>('/api/trips/item-kinds'),
   createTrip: (body: Partial<Trip>) =>
     request<{ trip: Trip }>('/api/trips', { method: 'POST', body: JSON.stringify(body) }),
-  getTrip: (id: number) =>
-    request<{ trip: Trip; items: Item[]; participants: Participant[] }>(`/api/trips/${id}`),
+  getTrip: (idOrSlug: number | string) =>
+    request<{ trip: Trip; items: Item[]; participants: Participant[] }>(`/api/trips/${idOrSlug}`),
 
   listParticipants: (tripId: number) =>
     request<{ participants: Participant[] }>(`/api/participants/trips/${tripId}`),

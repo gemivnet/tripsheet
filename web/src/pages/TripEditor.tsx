@@ -8,9 +8,13 @@ import type { EditorState, RightTab } from '../components/editor-state.js';
 import { useToast } from '../components/Toast.js';
 
 export function TripEditorPage({
-  tripId, user, onBack, onLogout,
+  tripIdOrSlug, user, onBack, onLogout,
 }: {
-  tripId: number;
+  /** Either a numeric trip id (when the user navigated from the trips list)
+   *  or a URL-safe slug (when the page was loaded via /t/:slug). The
+   *  initial getTrip() call resolves either form to the canonical
+   *  numeric id, which then drives every other API call. */
+  tripIdOrSlug: number | string;
   user: User;
   onBack: () => void;
   onLogout: () => void;
@@ -19,6 +23,11 @@ export function TripEditorPage({
   const [items, setItems] = useState<Item[]>([]);
   const [docs, setDocs] = useState<ReferenceDoc[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  // Once the initial getTrip resolves, use the numeric id from trip.id
+  // for every subsequent API call. We early-return a Loading placeholder
+  // until then, so the 0 default is never observable at runtime — it's
+  // a typing convenience for the callbacks captured above the guard.
+  const tripId = trip?.id ?? 0;
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [scrollTargetId, setScrollTargetId] = useState<number | null>(null);
   const [rightTab, setRightTab] = useState<RightTab>('event');
@@ -37,17 +46,22 @@ export function TripEditorPage({
   const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
-    void api.getTrip(tripId).then((r) => {
+    let cancelled = false;
+    void api.getTrip(tripIdOrSlug).then((r) => {
+      if (cancelled) return;
       setTrip(r.trip);
       setItems(r.items);
       setParticipants(r.participants);
+      // Now we have the numeric id; kick off the supporting fetches.
+      void api.listDocs({ tripId: r.trip.id }).then((d) => { if (!cancelled) setDocs(d.docs); });
+      void api.listSuggestions(r.trip.id).then((s) => { if (!cancelled) setAiSuggestions(s.suggestions); });
     });
-    void api.listDocs({ tripId }).then((r) => setDocs(r.docs));
-    void api.listSuggestions(tripId).then((r) => setAiSuggestions(r.suggestions));
-  }, [tripId]);
+    return () => { cancelled = true; };
+  }, [tripIdOrSlug]);
 
   const refreshParticipants = useCallback(async (): Promise<void> => {
-    const r = await api.listParticipants(tripId);
+    if (!tripId) return;
+const r = await api.listParticipants(tripId);
     setParticipants(r.participants);
   }, [tripId]);
 
@@ -60,19 +74,22 @@ export function TripEditorPage({
   );
 
   const refreshDocs = useCallback(async (): Promise<void> => {
-    const r = await api.listDocs({ tripId });
+    if (!tripId) return;
+const r = await api.listDocs({ tripId });
     setDocs(r.docs);
   }, [tripId]);
 
   const reloadTrip = useCallback(async (): Promise<void> => {
-    const r = await api.getTrip(tripId);
+    if (!tripId) return;
+const r = await api.getTrip(tripId);
     setTrip(r.trip);
     setItems(r.items);
     setParticipants(r.participants);
   }, [tripId]);
 
   const refreshSuggestions = useCallback(async (): Promise<void> => {
-    const r = await api.listSuggestions(tripId);
+    if (!tripId) return;
+const r = await api.listSuggestions(tripId);
     setAiSuggestions((prev) => {
       const byId = new Map<number, Suggestion>(prev.map((s) => [s.id, s]));
       for (const s of r.suggestions) byId.set(s.id, s);

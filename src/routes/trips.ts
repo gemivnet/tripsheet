@@ -10,6 +10,7 @@ import { defForKind, safeParseAttrs, KINDS } from '../itemKinds/index.js';
 import { buildPdfHtml, type PdfMode } from './pdfTemplate.js';
 import { reimportTrip } from '../ai/parsePdf.js';
 import type { ReferenceDocRow } from '../types.js';
+import { generateUniqueTripSlug, looksLikeSlug } from '../slug.js';
 
 const TripBody = z.object({
   name: z.string().min(1).max(200),
@@ -54,6 +55,22 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
 
   const listTrips = db.prepare<[], TripRow>('SELECT * FROM trips ORDER BY start_date DESC');
   const getTrip = db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?');
+  const getTripBySlug = db.prepare<[string], TripRow>('SELECT * FROM trips WHERE slug = ?');
+  /**
+   * Resolve `:id` route param. Numeric → look up by id. URL-safe slug
+   * shape → look up by slug. Returns null when neither matches so the
+   * caller can 404. Centralized here so /:id and /:id/* both accept a
+   * slug equivalently.
+   */
+  const resolveTrip = (param: string): TripRow | null => {
+    if (looksLikeSlug(param)) {
+      const bySlug = getTripBySlug.get(param);
+      if (bySlug) return bySlug;
+    }
+    const n = Number(param);
+    if (Number.isFinite(n)) return getTrip.get(n) ?? null;
+    return null;
+  };
   const listItems = db.prepare<[number], ItemRow & { created_by_name: string | null; participant_ids_csv: string | null }>(
     `SELECT i.*,
             u.display_name AS created_by_name,
@@ -96,12 +113,12 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
   });
 
   router.get('/:id', (req, res) => {
-    const id = Number(req.params.id);
-    const trip = getTrip.get(id);
+    const trip = resolveTrip(req.params.id);
     if (!trip) {
       res.status(404).json({ error: 'Trip not found' });
       return;
     }
+    const id = trip.id;
     const rawItems = listItems.all(id);
     const items = rawItems.map((r) => ({
       ...r,
@@ -116,9 +133,9 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
   });
 
   router.get('/:id/export/pdf', (req, res) => {
-    const id = Number(req.params.id);
-    const trip = getTrip.get(id);
+    const trip = resolveTrip(req.params.id);
     if (!trip) { res.status(404).json({ error: 'Trip not found' }); return; }
+    const id = trip.id;
     const mode: PdfMode = req.query.mode === 'condensed' ? 'condensed' : 'per-day';
     const rawItems = listItems.all(id);
 
@@ -154,8 +171,7 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
   });
 
   router.post('/:id/reimport', (req, res) => {
-    const id = Number(req.params.id);
-    const trip = getTrip.get(id);
+    const trip = resolveTrip(req.params.id);
     if (!trip) { res.status(404).json({ error: 'Trip not found' }); return; }
     if (!uploadDir) { res.status(500).json({ error: 'Upload directory not configured' }); return; }
     const docId = Number(req.body?.doc_id);
@@ -179,8 +195,7 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
   });
 
   router.patch('/:id', (req, res) => {
-    const id = Number(req.params.id);
-    const trip = getTrip.get(id);
+    const trip = resolveTrip(req.params.id);
     if (!trip) {
       res.status(404).json({ error: 'Trip not found' });
       return;
@@ -191,15 +206,14 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
       return;
     }
     const userId = authed(req).user.id;
-    const updated = updateTrip(db, id, parsed.data, userId, trip);
+    const updated = updateTrip(db, trip.id, parsed.data, userId, trip);
     res.json({ trip: updated });
   });
 
   router.delete('/:id/days/:date', (req, res) => {
-    const id = Number(req.params.id);
     const date = String(req.params.date);
     const mode = req.query.mode === 'leave' ? 'leave' : 'shift';
-    const trip = getTrip.get(id);
+    const trip = resolveTrip(req.params.id);
     if (!trip) {
       res.status(404).json({ error: 'Trip not found' });
       return;
@@ -218,19 +232,18 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
   });
 
   router.delete('/:id', (req, res) => {
-    const id = Number(req.params.id);
-    const trip = getTrip.get(id);
+    const trip = resolveTrip(req.params.id);
     if (!trip) {
       res.status(404).json({ error: 'Trip not found' });
       return;
     }
     const userId = authed(req).user.id;
     db.transaction(() => {
-      db.prepare('DELETE FROM trips WHERE id = ?').run(id);
+      db.prepare('DELETE FROM trips WHERE id = ?').run(trip.id);
       writeAudit(db, {
         user_id: userId,
         entity: 'trip',
-        entity_id: id,
+        entity_id: trip.id,
         action: 'delete',
         diff: { before: trip },
       });
@@ -239,8 +252,8 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
   });
 
   router.post('/:id/items', (req, res) => {
-    const tripId = Number(req.params.id);
-    if (!getTrip.get(tripId)) {
+    const trip = resolveTrip(req.params.id);
+    if (!trip) {
       res.status(404).json({ error: 'Trip not found' });
       return;
     }
@@ -250,7 +263,7 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
       return;
     }
     const userId = authed(req).user.id;
-    const item = createItem(db, tripId, parsed.data, userId);
+    const item = createItem(db, trip.id, parsed.data, userId);
     res.status(201).json({ item });
   });
 
@@ -298,11 +311,13 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
 export function createTrip(db: DB, body: TripBodyT, userId: number): TripRow {
   const now = new Date().toISOString();
   const tx = db.transaction((): TripRow => {
+    const slug = generateUniqueTripSlug(db);
     const info = db
       .prepare(
-        'INSERT INTO trips (name, start_date, end_date, destination, goals, notes, default_tz, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO trips (slug, name, start_date, end_date, destination, goals, notes, default_tz, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
       .run(
+        slug,
         body.name,
         body.start_date,
         body.end_date,
