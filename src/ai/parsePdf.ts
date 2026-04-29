@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -87,6 +87,79 @@ export function queueParse(db: DB, doc: ReferenceDocRow, uploadDir: string): voi
   });
 }
 
+/**
+ * Run the parser against a doc and return the structured items it
+ * extracted, with no side effects. Used by the trip-reimport flow,
+ * which wants the items as-parsed so it can wipe the trip and rebuild
+ * from scratch instead of going through the suggestion swipe deck.
+ *
+ * The doc's `parse_status` and stored fields are NOT touched here —
+ * caller is expected to handle persistence separately if needed.
+ */
+export async function parseDocAsItems(
+  db: DB,
+  doc: ReferenceDocRow,
+  uploadDir: string,
+): Promise<{
+  summary: string;
+  doc_kind: string;
+  items: Array<z.infer<typeof ParsedSchema>['items'][number]>;
+  trip: { name: string; start_date: string; end_date: string; destination: string | null } | null;
+}> {
+  const trip = doc.trip_id
+    ? db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?').get(doc.trip_id) ?? null
+    : null;
+
+  const fileBytes = readFileSync(join(uploadDir, doc.stored_filename));
+  const base64 = fileBytes.toString('base64');
+
+  const promptLines: string[] = [`Parse this document. Title: ${doc.title}.`];
+  if (trip) {
+    promptLines.push(
+      '',
+      'Trip context (this document was uploaded inside a specific trip — align items to real calendar dates when possible):',
+      `- Trip name: ${trip.name}`,
+      `- Dates: ${trip.start_date} → ${trip.end_date}`,
+    );
+    if (trip.destination) promptLines.push(`- Destination: ${trip.destination}`);
+    if (trip.goals) promptLines.push(`- Goals: ${trip.goals}`);
+  } else {
+    promptLines.push('', 'No trip context — this is a library-wide reference doc.');
+  }
+
+  const response = await callMessages<Anthropic.Messages.Message>('parsePdf', {
+    max_tokens: 32_000,
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: base64 },
+          },
+          { type: 'text', text: promptLines.join('\n') },
+        ],
+      },
+    ],
+  });
+
+  const parsed = parseModelResponse(response, doc, uploadDir);
+  return {
+    summary: parsed.summary,
+    doc_kind: parsed.doc_kind,
+    items: parsed.items,
+    trip: parsed.trip
+      ? {
+          name: parsed.trip.name,
+          start_date: parsed.trip.start_date,
+          end_date: parsed.trip.end_date,
+          destination: parsed.trip.destination ?? null,
+        }
+      : null,
+  };
+}
+
 async function parseDoc(db: DB, doc: ReferenceDocRow, uploadDir: string): Promise<void> {
   const trip = doc.trip_id
     ? db.prepare<[number], TripRow>('SELECT * FROM trips WHERE id = ?').get(doc.trip_id) ?? null
@@ -110,7 +183,7 @@ async function parseDoc(db: DB, doc: ReferenceDocRow, uploadDir: string): Promis
   }
 
   const response = await callMessages<Anthropic.Messages.Message>('parsePdf', {
-    max_tokens: 16_384,
+    max_tokens: 32_000,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -126,9 +199,7 @@ async function parseDoc(db: DB, doc: ReferenceDocRow, uploadDir: string): Promis
     ],
   });
 
-  const text = extractText(response);
-  const jsonStr = extractJsonBlob(text);
-  const parsed = ParsedSchema.parse(JSON.parse(jsonStr));
+  const parsed = parseModelResponse(response, doc, uploadDir);
 
   const tripMeta = parsed.trip ?? null;
   const tripMetaJson = tripMeta ? JSON.stringify(tripMeta) : null;
@@ -442,6 +513,83 @@ function emitTripImportSuggestions(
   }
 }
 
+/**
+ * Wipe a trip's existing items and rebuild from a fresh parse of the
+ * given doc. Items are created directly via `createItem` (not as
+ * suggestions) so the latest `applyDerivation` runs on each one and
+ * all kind-specific structured attributes get filled in.
+ *
+ * Returns the count of items deleted + count created so the caller can
+ * surface a summary in the UI.
+ */
+export async function reimportTrip(
+  db: DB,
+  trip: TripRow,
+  doc: ReferenceDocRow,
+  uploadDir: string,
+  userId: number,
+): Promise<{ deleted: number; created: number }> {
+  // 1. Parse first (slow, network-bound) so a parse failure doesn't
+  //    leave the user with an empty trip.
+  const parsed = await parseDocAsItems(db, doc, uploadDir);
+
+  // 2. Wipe + rebuild atomically.
+  const tx = db.transaction((): { deleted: number; created: number } => {
+    const before = db
+      .prepare<[number], { id: number; title: string }>(
+        'SELECT id, title FROM items WHERE trip_id = ?',
+      )
+      .all(trip.id);
+    for (const it of before) {
+      db.prepare('DELETE FROM items WHERE id = ?').run(it.id);
+      writeAudit(db, {
+        user_id: userId,
+        entity: 'item',
+        entity_id: it.id,
+        action: 'delete',
+        diff: { reason: 'reimport', doc_id: doc.id, title: it.title },
+      });
+    }
+
+    let created = 0;
+    for (const item of parsed.items) {
+      const dayDate = resolveDayDate(item, trip);
+      const kind = normalizeItemKind(item.kind);
+      try {
+        createItem(
+          db,
+          trip.id,
+          {
+            day_date: dayDate,
+            kind,
+            title: item.title,
+            start_time: item.start_time ?? null,
+            end_time: item.end_time ?? null,
+            location: item.location ?? null,
+            url: item.url ?? null,
+            confirmation: item.confirmation ?? null,
+            hours: item.hours ?? null,
+            cost: item.cost ?? null,
+            notes: item.notes ?? null,
+            source_doc_id: doc.id,
+            tz: item.tz ?? null,
+            end_tz: item.end_tz ?? null,
+            attributes: item.attributes ?? {},
+          } as never,
+          userId,
+        );
+        created++;
+      } catch (e) {
+        // Skip items that fail validation; the rest still rebuild.
+        console.warn(`[reimport] skipped item "${item.title}":`, e);
+      }
+    }
+
+    return { deleted: before.length, created };
+  });
+  return tx();
+}
+
 function resolveDayDate(item: ParsedItem, trip: TripRow): string {
   if (item.day_date && withinRange(item.day_date, trip.start_date, trip.end_date)) {
     return item.day_date;
@@ -465,8 +613,61 @@ function normalizeItemKind(raw: string): string {
   // Map common parse-time labels back onto the app's canonical set.
   if (lower === 'lodging' || lower === 'hotel' || lower === 'stay') return 'checkin';
   if (lower === 'flight' || lower === 'train' || lower === 'drive' || lower === 'transfer') return 'transit';
-  if (lower === 'meal' || lower === 'restaurant' || lower === 'dining') return 'reservation';
+  if (
+    lower === 'restaurant' || lower === 'dining' || lower === 'breakfast' ||
+    lower === 'brunch' || lower === 'lunch' || lower === 'dinner' ||
+    lower === 'drinks' || lower === 'bar' || lower === 'cafe' || lower === 'snack'
+  ) return 'meal';
+  if (
+    lower === 'tour' || lower === 'cruise' || lower === 'retreat' ||
+    lower === 'resort' || lower === 'all-inclusive' || lower === 'all_inclusive'
+  ) return 'package';
   return 'activity';
+}
+
+/**
+ * Run the response through stop_reason and JSON checks, persisting the
+ * raw text to data/parse-failures/ on any failure so we can recover
+ * without re-spending input tokens on the PDF.
+ */
+function parseModelResponse(
+  response: unknown,
+  doc: ReferenceDocRow,
+  uploadDir: string,
+): z.infer<typeof ParsedSchema> {
+  const text = extractText(response);
+  const stopReason = (response as { stop_reason?: string }).stop_reason;
+  if (stopReason === 'max_tokens') {
+    persistFailure(uploadDir, doc, text, 'max_tokens');
+    throw new Error(
+      `Model output truncated at max_tokens (${text.length} chars). Raw text saved to data/parse-failures/. Raise max_tokens or split the doc.`,
+    );
+  }
+  try {
+    const jsonStr = extractJsonBlob(text);
+    return ParsedSchema.parse(JSON.parse(jsonStr));
+  } catch (e) {
+    persistFailure(uploadDir, doc, text, e instanceof Error ? e.message : String(e));
+    throw e;
+  }
+}
+
+function persistFailure(
+  uploadDir: string,
+  doc: ReferenceDocRow,
+  rawText: string,
+  reason: string,
+): void {
+  try {
+    const dir = join(dirname(uploadDir), 'parse-failures');
+    mkdirSync(dir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const file = join(dir, `${doc.id}-${stamp}.txt`);
+    writeFileSync(file, `# reason: ${reason}\n# doc: ${doc.id} ${doc.title}\n\n${rawText}`);
+    console.warn(`[parsePdf] saved raw response to ${file}`);
+  } catch (e) {
+    console.error('[parsePdf] failed to persist parse failure:', e);
+  }
 }
 
 /**
