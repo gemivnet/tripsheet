@@ -69,7 +69,7 @@ function DaySection({
     const fromDate = e.dataTransfer.getData('fromDate');
     setDragState({ draggingId: null, overId: null });
     // Arrival shadows are display-only; don't include them in reorder math.
-    const realItems = day.items.filter((it) => !it._arrivalShadow);
+    const realItems = day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen);
     if (fromDate === day.date) {
       const fromIdx = realItems.findIndex((it) => it.id === itemId);
       if (fromIdx !== -1 && fromIdx !== toIndex) {
@@ -115,7 +115,7 @@ function DaySection({
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
             {(() => {
-              const real = day.items.filter((it) => !it._arrivalShadow);
+              const real = day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen);
               return `Day ${dayIndex + 1} · ${real.length} ${real.length === 1 ? 'item' : 'items'}`;
             })()}
           </div>
@@ -323,7 +323,7 @@ function DeleteDayPrompt({
     }}>
       <div style={{ fontSize: 13, color: 'oklch(35% 0.12 25)', marginBottom: 8 }}>
         {(() => {
-          const realCount = day.items.filter((it) => !it._arrivalShadow).length;
+          const realCount = day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length;
           return `Delete this day?${realCount > 0 ? ` ${realCount} item${realCount === 1 ? '' : 's'} will be removed.` : ''}`;
         })()}
       </div>
@@ -470,6 +470,14 @@ function smartDisplay(item: Item): { primary: string; secondary: string | null }
       const primary = `Arrives · ${[airline, flight].filter(Boolean).join(' ') || item.title}`;
       const tail = [arr ? `into ${arr}` : null, cabin].filter(Boolean).join(' · ');
       return { primary, secondary: tail || item.location };
+    }
+    if (item._checkInOpen) {
+      const flightLabel = [airline, flight].filter(Boolean).join(' ') || item.title;
+      const route = dep && arr ? `${dep} → ${arr}` : null;
+      return {
+        primary: `Online check-in opens · ${flightLabel}`,
+        secondary: route,
+      };
     }
     const primary = [airline, flight].filter(Boolean).join(' ') || item.title;
     const route = dep && arr ? `${dep} → ${arr}` : null;
@@ -726,6 +734,34 @@ function ItemCard({
   isDragging: boolean;
   dragHandlers: { onDragStart: (e: React.DragEvent) => void; onDragEnd: () => void };
 }): JSX.Element {
+  // Online check-in markers are read-only derived entries — clicking opens
+  // the parent flight.
+  if (item._checkInOpen) {
+    const { primary } = smartDisplay(item);
+    return (
+      <div
+        onClick={() => state.selectItem(item._parentItemId ?? item.id)}
+        style={{
+          borderRadius: 999, padding: '5px 12px',
+          background: 'oklch(96% 0.015 220)',
+          border: '1px dashed oklch(72% 0.08 220)',
+          color: 'oklch(38% 0.10 220)',
+          cursor: 'pointer', fontSize: 11.5,
+          display: 'flex', alignItems: 'center', gap: 8,
+          alignSelf: 'flex-start', maxWidth: '100%',
+        }}
+      >
+        <span style={{ fontSize: 13 }}>🛫</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+          {item.start_time}
+        </span>
+        <span style={{ opacity: 0.85, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {primary}
+        </span>
+      </div>
+    );
+  }
+
   // Arrival shadows are read-only markers — clicking opens the original item.
   if (item._arrivalShadow) {
     const { hue } = KIND_META[item.kind];

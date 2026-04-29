@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Item, ItemKind } from '../api.js';
+import { checkinOpensAt } from '../airlineCheckin.js';
 
 // ─── Palette: item.kind → hue + human label ──────────────────────────────────
 //
@@ -165,6 +166,32 @@ export function buildDays(trip: { start_date: string; end_date: string }, items:
     } catch { /* skip */ }
   }
 
+  // Synthesize "online check-in opens" markers for each flight, placed at
+  // (departure_local - airline.checkInWindowHours). Display-only — never
+  // stored in the DB. Skips flights with no departure date/time, or flights
+  // whose check-in window falls outside the trip's date range.
+  for (const it of items) {
+    if (it.kind !== 'transit') continue;
+    let attrs: { airline?: string; departure_date?: string; departure_time?: string } = {};
+    try { attrs = JSON.parse(it.attributes_json) as typeof attrs; } catch { continue; }
+    const depDate = attrs.departure_date ?? it.day_date;
+    const depTime = attrs.departure_time ?? it.start_time ?? null;
+    if (!depTime) continue;
+    const opens = checkinOpensAt(depDate, depTime, attrs.airline ?? null);
+    if (!opens) continue;
+    const synthetic: Item = {
+      ...it,
+      day_date: opens.date,
+      start_time: opens.time,
+      end_time: null,
+      sort_order: 0,
+      _checkInOpen: true,
+      _parentItemId: it.id,
+    };
+    if (!byDate.has(opens.date)) byDate.set(opens.date, []);
+    byDate.get(opens.date)!.push(synthetic);
+  }
+
   const dates = enumerateDates(trip.start_date, trip.end_date);
   for (const d of byDate.keys()) if (!dates.includes(d)) dates.push(d);
   dates.sort();
@@ -323,7 +350,7 @@ export function detectWarnings(items: Item[]): string[] {
   const out: string[] = [];
   // Arrival shadows are display-only — they shouldn't trigger warnings
   // (the underlying transit item already lives on its departure day).
-  const real = items.filter((i) => !i._arrivalShadow);
+  const real = items.filter((i) => !i._arrivalShadow && !i._checkInOpen);
   const kinds = new Set(real.map((i) => i.kind));
   const hasMealTitle = real.some((i) =>
     /\b(breakfast|brunch|lunch|dinner|drinks|snack|meal)\b/i.test(i.title),

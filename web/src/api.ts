@@ -48,6 +48,10 @@ export interface Item {
   participant_ids?: number[];
   /** Runtime-only flag: true when this is a synthetic arrival entry for a multi-day transit. Never stored in DB. */
   _arrivalShadow?: true;
+  /** Runtime-only flag: true when this is a synthetic "online check-in opens" marker derived from a parent flight. Never stored in DB. */
+  _checkInOpen?: true;
+  /** Runtime-only: id of the source item this synthetic entry derives from (e.g. the parent flight). */
+  _parentItemId?: number;
 }
 
 export interface Participant {
