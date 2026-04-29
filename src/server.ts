@@ -41,7 +41,7 @@ export function buildServer(opts: ServerOptions): Express {
   });
 
   app.use('/api/auth', authRouter(opts.db, opts.config));
-  app.use('/api/trips', tripsRouter(opts.db));
+  app.use('/api/trips', tripsRouter(opts.db, join(opts.dataDir, 'uploads')));
   app.use('/api', commentsRouter(opts.db));
   app.use('/api/suggestions', suggestionsRouter(opts.db));
   app.use('/api/uploads', uploadsRouter(opts.db, opts.config, opts.dataDir));

@@ -8,6 +8,8 @@ import { requireAuth, authed } from '../auth/middleware.js';
 import { writeAudit } from '../audit.js';
 import { defForKind, safeParseAttrs, KINDS } from '../itemKinds/index.js';
 import { buildPdfHtml, type PdfMode } from './pdfTemplate.js';
+import { reimportTrip } from '../ai/parsePdf.js';
+import type { ReferenceDocRow } from '../types.js';
 
 const TripBody = z.object({
   name: z.string().min(1).max(200),
@@ -43,7 +45,7 @@ const ItemPatch = ItemBody.partial();
 type TripBodyT = z.infer<typeof TripBody>;
 type ItemBodyT = z.infer<typeof ItemBody>;
 
-export function tripsRouter(db: DB): Router {
+export function tripsRouter(db: DB, uploadDir?: string): Router {
   const router = Router();
   router.use(requireAuth(db));
 
@@ -142,6 +144,31 @@ export function tripsRouter(db: DB): Router {
       } catch (err) {
         console.error('[PDF export]', err);
         res.status(500).json({ error: 'PDF generation failed', detail: String(err) });
+      }
+    })();
+  });
+
+  router.post('/:id/reimport', (req, res) => {
+    const id = Number(req.params.id);
+    const trip = getTrip.get(id);
+    if (!trip) { res.status(404).json({ error: 'Trip not found' }); return; }
+    if (!uploadDir) { res.status(500).json({ error: 'Upload directory not configured' }); return; }
+    const docId = Number(req.body?.doc_id);
+    if (!Number.isFinite(docId)) { res.status(400).json({ error: 'doc_id is required' }); return; }
+    const doc = db
+      .prepare<[number], ReferenceDocRow>('SELECT * FROM reference_docs WHERE id = ?')
+      .get(docId);
+    if (!doc) { res.status(404).json({ error: 'Doc not found' }); return; }
+
+    const userId = authed(req).user.id;
+    void (async () => {
+      try {
+        const summary = await reimportTrip(db, trip, doc, uploadDir, userId);
+        res.json({ ok: true, ...summary });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('[reimport]', msg);
+        res.status(500).json({ error: 'Reimport failed', detail: msg });
       }
     })();
   });
