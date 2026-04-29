@@ -154,7 +154,7 @@ function DaySection({
         />
       )}
 
-      <WarningBanner warnings={day.warnings} />
+      <WarningBanner warnings={day.warnings} dayDate={day.date} tripId={state.trip.id} />
 
       <div style={{ position: 'relative' }}>
         {/*
@@ -728,8 +728,32 @@ function AnytimeDivider(): JSX.Element {
   );
 }
 
-function WarningBanner({ warnings }: { warnings: string[] }): JSX.Element | null {
-  const [dismissed, setDismissed] = useState(false);
+/**
+ * Per-day warning banner. Dismissals are persisted in localStorage
+ * keyed by trip id + day date + a fingerprint of the warning set, so
+ * closing a warning sticks across reloads. Re-appears when the
+ * underlying warnings change (new warning text → different fingerprint
+ * → fresh banner) so we don't accidentally hide new problems.
+ */
+function WarningBanner({
+  warnings, dayDate, tripId,
+}: {
+  warnings: string[];
+  dayDate: string;
+  tripId: number;
+}): JSX.Element | null {
+  const fingerprint = warnings.join('|');
+  const storageKey = `tripsheet:warn-dismiss:${tripId}:${dayDate}`;
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem(storageKey) === fingerprint; } catch { return false; }
+  });
+  // If the warning set changes (e.g. a new issue surfaces), reset dismissal.
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(storageKey) === fingerprint);
+    } catch { setDismissed(false); }
+  }, [storageKey, fingerprint]);
+
   if (warnings.length === 0 || dismissed) return null;
   return (
     <div style={{
@@ -748,7 +772,10 @@ function WarningBanner({ warnings }: { warnings: string[] }): JSX.Element | null
         ))}
       </div>
       <button
-        onClick={() => setDismissed(true)}
+        onClick={() => {
+          try { localStorage.setItem(storageKey, fingerprint); } catch { /* ok */ }
+          setDismissed(true);
+        }}
         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'oklch(65% 0.08 65)', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
       >×</button>
     </div>
