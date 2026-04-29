@@ -166,17 +166,30 @@ export function buildDays(trip: { start_date: string; end_date: string }, items:
     } catch { /* skip */ }
   }
 
-  // Synthesize "online check-in opens" markers for each flight, placed at
-  // (departure_local - airline.checkInWindowHours). Display-only — never
-  // stored in the DB. Skips flights with no departure date/time, or flights
-  // whose check-in window falls outside the trip's date range.
-  for (const it of items) {
-    if (it.kind !== 'transit') continue;
+  // Synthesize "online check-in opens" markers. Group flights that share a
+  // booking confirmation — typically connecting flights on one PNR open
+  // for check-in together — and only surface the first leg's marker so
+  // the timeline doesn't show three identical "online check-in opens"
+  // pills for a one-stop itinerary. Flights with no confirmation fall
+  // through and each get their own marker.
+  const flights = items.filter((it) => it.kind === 'transit' && (it.start_time || it._arrivalShadow !== true));
+  const seenBookings = new Set<string>();
+  // Sort by chronological departure so the FIRST leg of each booking
+  // is the one that emits the marker.
+  const sortedFlights = flights.slice().sort((a, b) =>
+    a.day_date.localeCompare(b.day_date) || (a.start_time ?? '').localeCompare(b.start_time ?? ''),
+  );
+  for (const it of sortedFlights) {
     let attrs: { airline?: string; departure_date?: string; departure_time?: string } = {};
     try { attrs = JSON.parse(it.attributes_json) as typeof attrs; } catch { continue; }
     const depDate = attrs.departure_date ?? it.day_date;
     const depTime = attrs.departure_time ?? it.start_time ?? null;
     if (!depTime) continue;
+    const conf = it.confirmation?.trim();
+    if (conf) {
+      if (seenBookings.has(conf)) continue;
+      seenBookings.add(conf);
+    }
     const opens = checkinOpensAt(depDate, depTime, attrs.airline ?? null);
     if (!opens) continue;
     const synthetic: Item = {
@@ -410,7 +423,18 @@ export function detectWarnings(items: Item[]): string[] {
       return a.includes_meals === 'yes' || a.includes_meals === 'some';
     } catch { return false; }
   });
-  if (real.length > 0 && !kinds.has('meal') && !kinds.has('reservation') && !hasMealTitle && !packageCoversMeals) {
+  // Skip the "no meal plans" warning on days where flying eats most of
+  // the waking hours — adding a meal would mean eating an airline meal
+  // mid-flight, which doesn't really need to be planned. Threshold: a
+  // transit on the day with computed duration ≥ 6h, OR multiple transits
+  // totaling ≥ 8h.
+  const flightMins = real.reduce((sum, i) => {
+    if (i.kind !== 'transit') return sum;
+    const d = transitDurationMinutes(i);
+    return sum + (d > 0 ? d : 0);
+  }, 0);
+  const flightDominates = flightMins >= 6 * 60;
+  if (real.length > 0 && !flightDominates && !kinds.has('meal') && !kinds.has('reservation') && !hasMealTitle && !packageCoversMeals) {
     out.push('No meal plans yet — consider adding breakfast, lunch, or dinner.');
   }
 

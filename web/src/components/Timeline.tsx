@@ -157,7 +157,14 @@ function DaySection({
       <WarningBanner warnings={day.warnings} />
 
       <div style={{ position: 'relative' }}>
-        {day.items.length === 0 && day.transit_over ? (
+        {/*
+          "Empty" for the cover-banner gates means no real items — synthetic
+          markers (arrival shadows, online check-in pills) don't count.
+          A day strictly between a flight's depart and arrive should still
+          show "In transit — X continues through this day" even when an
+          unrelated check-in marker happens to sit on it.
+        */}
+        {day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length === 0 && day.transit_over ? (
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDrop(e, 0)}
@@ -172,7 +179,7 @@ function DaySection({
             <span style={{ fontSize: 18 }}>✈</span>
             <span><strong>In transit</strong> — {day.transit_over.title} continues through this day.</span>
           </div>
-        ) : day.items.length === 0 && day.package_over ? (
+        ) : day.items.filter((it) => !it._arrivalShadow && !it._checkInOpen).length === 0 && day.package_over ? (
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDrop(e, 0)}

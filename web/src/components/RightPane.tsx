@@ -359,12 +359,27 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         />
       )}
 
-      {isEditing && selected && state.participants.length > 0 && (
-        <ParticipantPicker
-          participants={state.participants}
-          attended={selected.participant_ids ?? []}
-          onChange={(ids) => void state.setItemParticipants(selected.id, ids)}
-        />
+      {isEditing && selected && (
+        state.participants.length > 0 ? (
+          <ParticipantPicker
+            participants={state.participants}
+            attended={selected.participant_ids ?? []}
+            onChange={(ids) => void state.setItemParticipants(selected.id, ids)}
+          />
+        ) : (
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Who's attending?</label>
+            <div style={{
+              padding: '10px 12px', borderRadius: 8, marginTop: 4,
+              border: '1.5px dashed var(--border)',
+              fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
+            }}>
+              No participants yet. Add them from the ribbon at the top of the trip
+              (the dashed <strong>+</strong> next to the trip header), then come back here to mark
+              who's attending this item.
+            </div>
+          </div>
+        )
       )}
 
       <div style={{ marginBottom: 18 }}>
