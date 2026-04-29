@@ -95,6 +95,9 @@ export const AIRLINES: readonly AirlineSpec[] = [
   { iata: 'VA', display: 'Virgin Australia', aliases: ['virgin australia', 'va'], checkInWindowHours: 24 },
   { iata: 'NZ', display: 'Air New Zealand', aliases: ['air new zealand', 'air nz', 'nz'], checkInWindowHours: 48 },
   { iata: 'JQ', display: 'Jetstar', aliases: ['jetstar', 'jq'], checkInWindowHours: 48 },
+  { iata: 'TL', display: 'Airnorth', aliases: ['airnorth', 'air north', 'tl'], checkInWindowHours: 24 },
+  { iata: 'ZL', display: 'Rex', aliases: ['rex', 'regional express', 'zl'], checkInWindowHours: 24 },
+  { iata: 'QH', display: 'Bonza', aliases: ['bonza', 'qh'], checkInWindowHours: 48 },
   // ─── Africa ─────────────────────────────────────────────────────────
   { iata: 'SA', display: 'South African', aliases: ['south african', 'south african airways', 'sa'], checkInWindowHours: 24 },
   { iata: 'ET', display: 'Ethiopian', aliases: ['ethiopian', 'ethiopian airlines', 'et'], checkInWindowHours: 24 },
