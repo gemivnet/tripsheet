@@ -17,6 +17,9 @@ export interface EditorState {
   refreshParticipants: () => Promise<void>;
   setItemParticipants: (itemId: number, participantIds: number[]) => Promise<void>;
   refreshDocs: () => Promise<void>;
+  /** Re-fetch the whole trip (trip + items + participants) — used after
+   *  bulk operations like PDF reimport that touch many items at once. */
+  reloadTrip: () => Promise<void>;
 
   selectedItemId: number | null;
   selectItem: (id: number | null) => void;

@@ -114,7 +114,10 @@ function DaySection({
             )}
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
-            Day {dayIndex + 1} · {day.items.length} {day.items.length === 1 ? 'item' : 'items'}
+            {(() => {
+              const real = day.items.filter((it) => !it._arrivalShadow);
+              return `Day ${dayIndex + 1} · ${real.length} ${real.length === 1 ? 'item' : 'items'}`;
+            })()}
           </div>
         </div>
         <button
@@ -168,6 +171,21 @@ function DaySection({
           >
             <span style={{ fontSize: 18 }}>✈</span>
             <span><strong>In transit</strong> — {day.transit_over.title} continues through this day.</span>
+          </div>
+        ) : day.items.length === 0 && day.package_over ? (
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleDrop(e, 0)}
+            style={{
+              padding: '16px 18px', borderRadius: 10,
+              background: `oklch(96% 0.04 ${KIND_META.package.hue})`,
+              border: `1.5px dashed oklch(72% 0.10 ${KIND_META.package.hue})`,
+              color: `oklch(38% 0.12 ${KIND_META.package.hue})`,
+              fontSize: 13, display: 'flex', alignItems: 'center', gap: 10,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>{KIND_META.package.icon}</span>
+            <span><strong>{day.package_over.title}</strong> — continues through this day.</span>
           </div>
         ) : day.items.length === 0 ? (
           <div
@@ -253,6 +271,39 @@ function DaySection({
           });
         })()}
       </div>
+      {day.lodging && <LodgingFooter lodging={day.lodging} onClick={() => state.selectItem(day.lodging!.id)} />}
+    </div>
+  );
+}
+
+/**
+ * Soft footer shown at the bottom of each day indicating where the user
+ * is sleeping that night. Reads from `day.lodging` which is computed
+ * from active checkin/checkout pairs and packages-with-lodging across
+ * the whole trip — so the user doesn't have to repeat themselves on
+ * every day.
+ */
+function LodgingFooter({ lodging, onClick }: { lodging: Item; onClick: () => void }): JSX.Element {
+  let attrs: Record<string, unknown> = {};
+  try { attrs = JSON.parse(lodging.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
+  const property = (attrs.property_name as string | undefined)
+    ?? (attrs.operator as string | undefined)
+    ?? lodging.location
+    ?? lodging.title;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        marginTop: 8, padding: '8px 14px', borderRadius: 8,
+        display: 'flex', alignItems: 'center', gap: 10,
+        cursor: 'pointer', fontSize: 12,
+        color: 'var(--text-muted)', background: 'oklch(98% 0.01 250)',
+        border: '1px solid var(--border)',
+        fontStyle: 'italic',
+      }}
+    >
+      <span style={{ fontSize: 14, fontStyle: 'normal' }}>🌙</span>
+      <span><span style={{ fontWeight: 600, fontStyle: 'normal' }}>Tonight</span> · {property}</span>
     </div>
   );
 }
@@ -271,7 +322,10 @@ function DeleteDayPrompt({
       borderRadius: 8, padding: '10px 12px',
     }}>
       <div style={{ fontSize: 13, color: 'oklch(35% 0.12 25)', marginBottom: 8 }}>
-        Delete this day?{day.items.length > 0 ? ` ${day.items.length} item${day.items.length === 1 ? '' : 's'} will be removed.` : ''}
+        {(() => {
+          const realCount = day.items.filter((it) => !it._arrivalShadow).length;
+          return `Delete this day?${realCount > 0 ? ` ${realCount} item${realCount === 1 ? '' : 's'} will be removed.` : ''}`;
+        })()}
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button
@@ -434,6 +488,18 @@ function smartDisplay(item: Item): { primary: string; secondary: string | null }
     return { primary, secondary: tail || get('address') || item.location };
   }
 
+  if (item.kind === 'meal') {
+    const mealType = get('meal_type');
+    const venue = get('venue_name');
+    const cuisine = get('cuisine');
+    const party = get('party_size');
+    const price = get('price_level');
+    const mealLabel = mealType ? mealType[0].toUpperCase() + mealType.slice(1) : 'Meal';
+    const primary = venue ? `${mealLabel} · ${venue}` : mealLabel;
+    const tail = [cuisine, party ? `party of ${party}` : null, price].filter(Boolean).join(' · ');
+    return { primary, secondary: tail || get('address') || item.location };
+  }
+
   if (item.kind === 'reservation') {
     const venue = get('venue_name');
     const party = get('party_size');
@@ -442,6 +508,21 @@ function smartDisplay(item: Item): { primary: string; secondary: string | null }
     const primary = venue ?? item.title;
     const tail = [cat, party ? `party of ${party}` : null, price].filter(Boolean).join(' · ');
     return { primary, secondary: tail || get('address') || item.location };
+  }
+
+  if (item.kind === 'package') {
+    const operator = get('operator');
+    const includesLodging = get('includes_lodging') === 'yes';
+    const includesMeals = get('includes_meals');
+    const endDate = get('end_date');
+    const primary = item.title;
+    const tail = [
+      operator,
+      endDate ? `through ${endDate}` : null,
+      includesLodging ? '🛏 lodging' : null,
+      includesMeals === 'yes' ? '🍽 all meals' : includesMeals === 'some' ? '🍽 some meals' : null,
+    ].filter(Boolean).join(' · ');
+    return { primary, secondary: tail || item.location };
   }
 
   if (item.kind === 'activity') {

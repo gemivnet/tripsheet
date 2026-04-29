@@ -1,60 +1,66 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, type Item, type KindDef, type KindFieldDef } from '../api.js';
+import { api, type Item, type ItemKind, type KindDef, type KindFieldDef } from '../api.js';
 import { inputStyle, labelStyle } from './shared.js';
 
 let kindsCache: KindDef[] | null = null;
 
 /**
- * Per-kind structured-attribute form. Renders a section of fields
- * defined by the server's `/api/trips/item-kinds` registry, so adding
- * a new field is a one-file backend change with no client-side
- * deploy. Saves to `items.attributes_json` on every change (debounced
- * 300ms) so the timeline card updates live as you type.
+ * Per-kind structured-attribute form. Renders fields defined by the
+ * server's `/api/trips/item-kinds` registry.
+ *
+ * Two modes:
+ *  - **Edit mode** (`mode='edit'`): commits each change to the API
+ *    (debounced 300ms) so the timeline updates live as you type.
+ *  - **Add mode** (`mode='add'`): just calls `onChange(attrs)` so the
+ *    parent's form-state holds the values until the user clicks "Add."
  */
+export type KindAttrsMode =
+  | { mode: 'edit'; itemId: number; updateItem: (id: number, patch: { attributes?: Record<string, unknown> }) => Promise<unknown> }
+  | { mode: 'add'; onChange: (attrs: Record<string, unknown>) => void };
+
 export function KindAttributes({
-  item,
-  updateItem,
+  kind,
+  initialAttrs,
+  control,
 }: {
-  item: Item;
-  updateItem: (id: number, patch: Partial<Item> & { attributes?: Record<string, unknown> }) => Promise<unknown>;
+  kind: ItemKind;
+  initialAttrs: Record<string, unknown>;
+  control: KindAttrsMode;
 }): JSX.Element | null {
   const [kinds, setKinds] = useState<KindDef[] | null>(kindsCache);
-  const [attrs, setAttrs] = useState<Record<string, unknown>>(() => parseAttrs(item.attributes_json));
+  const [attrs, setAttrs] = useState<Record<string, unknown>>(initialAttrs);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setAttrs(parseAttrs(item.attributes_json)); }, [item.id, item.attributes_json]);
+  // Re-sync local state when the parent swaps to a different item.
+  useEffect(() => { setAttrs(initialAttrs); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [JSON.stringify(initialAttrs)]);
   useEffect(() => {
     if (kindsCache) return;
     void api.listItemKinds().then((r) => { kindsCache = r.kinds; setKinds(r.kinds); });
   }, []);
 
-  const def = kinds?.find((k) => k.kind === item.kind);
+  const def = kinds?.find((k) => k.kind === kind);
   if (!def || def.fields.length === 0) return null;
 
-  const commitNow = (newAttrs: Record<string, unknown>): void => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    void updateItem(item.id, { attributes: newAttrs });
+  const commit = (newAttrs: Record<string, unknown>): void => {
+    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+    if (control.mode === 'edit') {
+      void control.updateItem(control.itemId, { attributes: newAttrs });
+    } else {
+      control.onChange(newAttrs);
+    }
   };
 
-  const setField = (name: string, raw: unknown, immediate = false): void => {
+  const setField = (name: string, raw: unknown, immediate: boolean): void => {
     setAttrs((prev) => {
       const next = { ...prev, [name]: raw };
-      if (immediate) {
-        commitNow(next);
+      if (immediate || control.mode === 'add') {
+        commit(next);
       } else {
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => commitNow(next), 300);
+        debounceRef.current = setTimeout(() => commit(next), 300);
       }
       return next;
     });
-  };
-
-  const flush = (currentAttrs: Record<string, unknown>): void => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-    commitNow(currentAttrs);
   };
 
   return (
@@ -78,7 +84,7 @@ export function KindAttributes({
             field={field}
             value={attrs[field.name]}
             onChange={(v) => setField(field.name, v, field.type === 'select')}
-            onFlush={() => flush(attrs)}
+            onFlush={() => commit(attrs)}
           />
         ))}
       </div>
@@ -144,13 +150,13 @@ function FieldInput({
   );
 }
 
-function parseAttrs(json: string): Record<string, unknown> {
-  try { return JSON.parse(json) as Record<string, unknown>; }
-  catch { return {}; }
-}
-
 const subLabel: React.CSSProperties = {
   fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
   color: 'var(--text-muted)', marginBottom: 2, display: 'block',
 };
 const gridSpan2: React.CSSProperties = { gridColumn: 'span 2' };
+
+export function parseAttrs(json: string): Record<string, unknown> {
+  try { return JSON.parse(json) as Record<string, unknown>; }
+  catch { return {}; }
+}

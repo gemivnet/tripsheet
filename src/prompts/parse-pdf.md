@@ -37,7 +37,7 @@ Return a single JSON object, no prose, no code fence:
     {
       "day_offset": number | null,
       "day_date": "YYYY-MM-DD" | null,
-      "kind": "reservation" | "checkin" | "checkout" | "activity" | "option" | "note" | "transit",
+      "kind": "meal" | "reservation" | "checkin" | "checkout" | "activity" | "package" | "option" | "note" | "transit",
       "title": "string",
       "start_time": "HH:MM" | null,
       "end_time": "HH:MM" | null,
@@ -98,7 +98,26 @@ processed.
 Note: `policy_time` sets the item's timeline position. Populate `start_time`
 at the top level with the same value.
 
-### `reservation` (restaurants, tours, ticketed venues)
+### `meal` (breakfast, lunch, dinner, drinks)
+```json
+{
+  "meal_type": "breakfast" | "brunch" | "lunch" | "dinner" | "late-night" | "snack" | "drinks",
+  "venue_name": "name of the restaurant",
+  "address": "full street address",
+  "cuisine": "e.g. Italian, ramen, brunch spot",
+  "party_size": 2,
+  "price_level": "$" | "$$" | "$$$" | "$$$$",
+  "dress_code": "e.g. smart casual"
+}
+```
+Use `meal` for any eating-related item — restaurants, brunch spots, drinks,
+food tours, even loosely planned meals. The reservation/booking number (if any)
+goes in the top-level `confirmation` field. If there's no booking, just leave
+`confirmation` null. Set `start_time` only when a specific time is given (e.g.
+"7pm reservation"); leave it null for fuzzy items like "dinner somewhere in the
+old town."
+
+### `reservation` (tours, shows, spa, non-meal bookings)
 ```json
 {
   "venue_name": "name of the place",
@@ -113,6 +132,26 @@ at the top level with the same value.
 ```
 Note: the reservation time (when the user is booked) goes in the top-level
 `start_time`. `opens_at`/`closes_at` are venue operating hours.
+
+### `package` (multi-day tour, cruise, all-inclusive resort, retreat)
+```json
+{
+  "operator": "tour company / resort / cruise line",
+  "end_date": "YYYY-MM-DD",
+  "end_time": "HH:MM",
+  "includes_lodging": "yes" | "no",
+  "includes_meals": "yes" | "no" | "some",
+  "meal_plan": "free-form, e.g. 'all meals' or 'breakfast only'",
+  "price": "e.g. $1,200 per person",
+  "cancellation": "cancellation terms"
+}
+```
+Use `package` for any item that spans multiple days as a single booking —
+guided tours, cruises, all-inclusive resorts, retreats, cooking schools.
+Set `day_date` (top-level) to the start day and `end_date` (in attributes)
+to the last day. When `includes_lodging: yes`, the days covered by the
+package automatically count as lodging on the timeline — no separate
+checkin/checkout needed.
 
 ### `activity` (sights, museums, parks, walks)
 ```json
@@ -146,11 +185,16 @@ Note: the reservation time (when the user is booked) goes in the top-level
   align this item to a specific calendar day within that range. When
   there is no trip context, or the alignment is ambiguous, leave it null
   and rely on `day_offset` only.
-- **`kind`** is the item kind as used by the app. Map flights, trains,
-  and transfers to `transit`; hotel night-of arrival to `checkin` and
-  departure day to `checkout`; restaurants / tours / tickets to
-  `reservation`; sightseeing and events to `activity`; anything loose or
-  optional to `option` or `note`.
+- **`kind`** is the item kind as used by the app. Map:
+  - flights, trains, transfers → `transit`
+  - hotel night-of arrival → `checkin`
+  - hotel departure day → `checkout`
+  - **anything eating-related** (restaurants, brunch spots, drinks, food tours, breakfast/lunch/dinner without venue) → `meal`
+  - tours, shows, spa, concerts, sporting events, ticketed non-meal bookings → `reservation`
+  - **multi-day** tours, cruises, all-inclusive resorts, retreats → `package`
+  - sightseeing, museums, parks, walks, sights → `activity`
+  - loose ideas or "we could…" → `option`
+  - journal passages, day reflections, context notes → `note`
 - **One `items` entry per discrete thing.** A reservation, a
   check-in/out, a visited site, a meal, a transit leg, a journal
   passage worth preserving. Don't collapse a whole day into one entry.

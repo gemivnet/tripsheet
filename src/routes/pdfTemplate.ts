@@ -171,6 +171,22 @@ function formatDetail(item: ItemLike): { primary: string; detail: string | null 
     };
   }
 
+  if (item.kind === 'meal') {
+    const mealType = get('meal_type');
+    const venue = get('venue_name');
+    const party = get('party_size');
+    const mealLabel = mealType ? mealType[0].toUpperCase() + mealType.slice(1) : 'Meal';
+    return {
+      primary: venue ? `${mealLabel} · ${venue}` : mealLabel,
+      detail: [
+        get('cuisine'),
+        party ? `party of ${party}` : null,
+        item.confirmation ? `res # ${item.confirmation}` : null,
+        get('address'),
+      ].filter(Boolean).join(' · ') || item.location,
+    };
+  }
+
   if (item.kind === 'reservation') {
     const venue = get('venue_name');
     const party = get('party_size');
@@ -188,6 +204,18 @@ function formatDetail(item: ItemLike): { primary: string; detail: string | null 
     return {
       primary: get('venue_name') ?? item.title,
       detail: [get('address'), item.hours, get('price')].filter(Boolean).join(' · ') || item.location,
+    };
+  }
+  if (item.kind === 'package') {
+    return {
+      primary: item.title,
+      detail: [
+        get('operator'),
+        get('end_date') ? `through ${get('end_date')}` : null,
+        get('includes_lodging') === 'yes' ? 'lodging incl.' : null,
+        get('includes_meals') === 'yes' ? 'all meals incl.' : null,
+        item.confirmation ? `conf ${item.confirmation}` : null,
+      ].filter(Boolean).join(' · ') || item.location,
     };
   }
 

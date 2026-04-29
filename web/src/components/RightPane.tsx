@@ -6,6 +6,7 @@ import {
   inputStyle, labelStyle,
 } from './shared.js';
 import { KindAttributes } from './KindAttributes.js';
+import { useToast } from './Toast.js';
 import { PreviewTab } from './PreviewTab.js';
 
 const TABS: Array<{ id: RightTab; icon: string }> = [
@@ -84,25 +85,34 @@ function kindOwnsTime(kind: ItemKind): boolean {
 
 interface FormState {
   start_time: string;
+  end_time: string;
   title: string;
   location: string;
   kind: ItemKind;
   notes: string;
-  confirmed: boolean;
+  confirmation: string;  // empty string = no reservation/booking code
+  attributes: Record<string, unknown>;
 }
 
 function blankForm(): FormState {
-  return { start_time: '12:00', title: '', location: '', kind: 'activity', notes: '', confirmed: false };
+  return {
+    start_time: '', end_time: '', title: '', location: '',
+    kind: 'activity', notes: '', confirmation: '', attributes: {},
+  };
 }
 
 function formFromItem(item: Item): FormState {
+  let attributes: Record<string, unknown> = {};
+  try { attributes = JSON.parse(item.attributes_json) as Record<string, unknown>; } catch { /* ok */ }
   return {
     start_time: item.start_time ?? '',
+    end_time: item.end_time ?? '',
     title: item.title,
     location: item.location ?? '',
     kind: item.kind,
     notes: item.notes ?? '',
-    confirmed: !!item.confirmation,
+    confirmation: item.confirmation ?? '',
+    attributes,
   };
 }
 
@@ -130,16 +140,31 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
   }, [addForDate]);
 
   function set<K extends keyof FormState>(k: K, v: FormState[K]): void {
-    setForm((p) => ({ ...p, [k]: v }));
+    setForm((p) => {
+      const next = { ...p, [k]: v };
+      // When kind changes in add mode, reset attrs so old kind's fields
+      // don't leak into the new kind's payload.
+      if (k === 'kind' && !isEditing) next.attributes = {};
+      return next;
+    });
     if (isEditing && selected) {
-      if (k === 'confirmed') {
-        void updateItem(selected.id, { confirmation: v ? 'confirmed' : null });
-      } else if (k === 'start_time') {
-        void updateItem(selected.id, { start_time: (v as string) || null });
-      } else {
-        void updateItem(selected.id, { [k]: v } as Partial<Item>);
+      // Form fields with empty strings should hit the API as null so the
+      // DB column reflects "no value" rather than an empty string.
+      const blankToNull = (raw: unknown): unknown =>
+        typeof raw === 'string' && raw === '' ? null : raw;
+      if (k === 'attributes') {
+        // Attributes are committed by KindAttributes itself (debounced).
+        return;
       }
+      void updateItem(selected.id, { [k]: blankToNull(v) } as Partial<Item>);
     }
+  }
+
+  // Live attribute updates: in edit mode KindAttributes already commits to
+  // the API directly. In add mode it just updates form state; saveNew()
+  // sends them along with the rest of the new item.
+  function setAttrs(next: Record<string, unknown>): void {
+    setForm((p) => ({ ...p, attributes: next }));
   }
 
   async function saveNew(): Promise<void> {
@@ -149,10 +174,12 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
       title: form.title.trim(),
       kind: form.kind,
       start_time: form.start_time || null,
+      end_time: form.end_time || null,
       location: form.location || null,
       notes: form.notes || null,
-      confirmation: form.confirmed ? 'confirmed' : null,
-    });
+      confirmation: form.confirmation || null,
+      attributes: form.attributes,
+    } as Partial<Item> & { day_date: string; title: string; kind: ItemKind; attributes?: Record<string, unknown> });
     if (created) selectItem(created.id);
     closeAdd();
   }
@@ -225,35 +252,45 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
-        {!kindOwnsTime(form.kind) && (
-          <div style={{ flex: '0 0 120px' }}>
-            <label style={labelStyle}>Time</label>
-            <input type="time" value={form.start_time} onChange={(e) => set('start_time', e.target.value)} style={inputStyle} />
+      {/*
+        Time row: in edit mode for kinds that own their own time (flight,
+        checkin, checkout), the kind-specific time fields in the details
+        section drive the timeline — hide the generic row to avoid two
+        ways to set the same value. In add mode, always show so the user
+        can quickly create an item without diving into kind details.
+      */}
+      {(isAdding || !kindOwnsTime(form.kind)) && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Start time</label>
+            <input
+              type="time"
+              value={form.start_time}
+              onChange={(e) => set('start_time', e.target.value)}
+              style={inputStyle}
+            />
           </div>
-        )}
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Status</label>
-          <div style={{ display: 'flex', gap: 8, marginTop: 1 }}>
-            {[true, false].map((c) => (
-              <button
-                key={String(c)}
-                onClick={() => set('confirmed', c)}
-                style={{
-                  flex: 1, padding: '8px 0', borderRadius: 8,
-                  border: '1.5px solid',
-                  fontSize: 12.5, cursor: 'pointer', fontWeight: 600,
-                  transition: 'all 0.15s',
-                  borderColor: form.confirmed === c ? (c ? 'oklch(48% 0.12 160)' : 'oklch(62% 0.13 62)') : 'var(--border)',
-                  background: form.confirmed === c ? (c ? 'oklch(95% 0.05 160)' : 'oklch(97% 0.04 65)') : 'transparent',
-                  color: form.confirmed === c ? (c ? 'oklch(38% 0.12 160)' : 'oklch(45% 0.12 62)') : 'var(--text-muted)',
-                }}
-              >
-                {c ? '✓ Confirmed' : '○ Unconfirmed'}
-              </button>
-            ))}
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>End time</label>
+            <input
+              type="time"
+              value={form.end_time}
+              onChange={(e) => set('end_time', e.target.value)}
+              placeholder={form.kind === 'activity' ? 'auto from duration' : ''}
+              style={inputStyle}
+            />
           </div>
         </div>
+      )}
+
+      <div style={{ marginBottom: 18 }}>
+        <label style={labelStyle}>Confirmation #</label>
+        <input
+          value={form.confirmation}
+          onChange={(e) => set('confirmation', e.target.value)}
+          placeholder="Booking code, if you have one — leave blank for unconfirmed"
+          style={inputStyle}
+        />
       </div>
 
       <div style={{ marginBottom: 14 }}>
@@ -272,7 +309,22 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
       )}
 
       {isEditing && selected && (
-        <KindAttributes item={selected} updateItem={updateItem as (id: number, patch: Partial<Item> & { attributes?: Record<string, unknown> }) => Promise<unknown>} />
+        <KindAttributes
+          kind={selected.kind}
+          initialAttrs={form.attributes}
+          control={{
+            mode: 'edit',
+            itemId: selected.id,
+            updateItem: updateItem as (id: number, patch: { attributes?: Record<string, unknown> }) => Promise<unknown>,
+          }}
+        />
+      )}
+      {isAdding && (
+        <KindAttributes
+          kind={form.kind}
+          initialAttrs={form.attributes}
+          control={{ mode: 'add', onChange: setAttrs }}
+        />
       )}
 
       {isEditing && selected && state.participants.length > 0 && (
@@ -1125,6 +1177,9 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
             </button>
           ))}
         </div>
+        {selected && selected.parse_status === 'complete' && (
+          <ReimportButton state={state} doc={selected} />
+        )}
         {selected && (
           <DocDeleteButton
             doc={selected}
@@ -1178,6 +1233,50 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
         />
       )}
     </div>
+  );
+}
+
+function ReimportButton({
+  state, doc,
+}: { state: EditorState; doc: ReferenceDoc }): JSX.Element {
+  const toast = useToast();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const itemCount = state.items.length;
+  return (
+    <button
+      title={confirming
+        ? `Click again — this deletes all ${itemCount} item${itemCount === 1 ? '' : 's'} and rebuilds from "${doc.title}"`
+        : `Reimport from "${doc.title}" (rebuilds the trip from scratch)`}
+      disabled={busy}
+      onClick={async () => {
+        if (!confirming) {
+          setConfirming(true);
+          setTimeout(() => setConfirming(false), 4000);
+          return;
+        }
+        setBusy(true);
+        try {
+          const r = await api.reimportTrip(state.trip.id, doc.id);
+          await state.reloadTrip();
+          toast.success(`Reimport complete — ${r.deleted} deleted, ${r.created} created.`);
+        } catch (e) {
+          toast.error(`Reimport failed — ${e instanceof Error ? e.message : String(e)}`);
+        } finally {
+          setBusy(false);
+          setConfirming(false);
+        }
+      }}
+      style={{
+        padding: '6px 10px', borderRadius: 16,
+        border: '1.5px solid', borderColor: confirming ? 'oklch(58% 0.16 65)' : 'var(--border)',
+        background: confirming ? 'oklch(58% 0.16 65)' : 'transparent',
+        color: confirming ? '#fff' : 'var(--text-muted)',
+        fontSize: 11.5, lineHeight: 1, cursor: busy ? 'default' : 'pointer',
+        flexShrink: 0, fontWeight: 600,
+        opacity: busy ? 0.5 : 1,
+      }}
+    >{busy ? 'Working…' : confirming ? 'Confirm reimport' : '↻ Reimport'}</button>
   );
 }
 

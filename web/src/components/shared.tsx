@@ -7,17 +7,19 @@ import type { Item, ItemKind } from '../api.js';
 // pill/dot pair stays harmonious with the terracotta accent. Label is what
 // the user sees on pills.
 export const KIND_META: Record<ItemKind, { label: string; hue: number; icon: string }> = {
+  meal:        { label: 'Meal',        hue: 15,  icon: '✦' },
   reservation: { label: 'Reservation', hue: 30,  icon: '◉' },
   checkin:     { label: 'Check-in',    hue: 45,  icon: '⌂' },
   checkout:    { label: 'Check-out',   hue: 45,  icon: '⌂' },
   activity:    { label: 'Activity',    hue: 160, icon: '◈' },
+  package:     { label: 'Package',     hue: 100, icon: '⛺' },
   option:      { label: 'Option',      hue: 280, icon: '○' },
   note:        { label: 'Note',        hue: 0,   icon: '✎' },
   transit:     { label: 'Transit',     hue: 220, icon: '↗' },
 };
 
 export const KIND_LIST: ItemKind[] = [
-  'activity', 'reservation', 'checkin', 'checkout', 'transit', 'option', 'note',
+  'meal', 'activity', 'reservation', 'package', 'checkin', 'checkout', 'transit', 'option', 'note',
 ];
 
 // ─── Avatar (initials disc) ──────────────────────────────────────────────────
@@ -108,6 +110,20 @@ export interface Day {
    * empty-state.
    */
   transit_over: Item | null;
+  /**
+   * If a multi-day package (tour, cruise, retreat) covers this day
+   * (start_date < day < end_date), this is that item. The day shows
+   * a "package continues" indicator.
+   */
+  package_over: Item | null;
+  /**
+   * Where the user is sleeping at the end of this day, if it can be
+   * determined from the trip's items. Either a `checkin` (whose stay
+   * hasn't been ended by a later `checkout`) or a `package` whose
+   * `includes_lodging` is yes and whose date range covers this day.
+   * Null when no lodging is recorded for the night.
+   */
+  lodging: Item | null;
 }
 
 export function buildDays(trip: { start_date: string; end_date: string }, items: Item[]): Day[] {
@@ -137,6 +153,11 @@ export function buildDays(trip: { start_date: string; end_date: string }, items:
         start_time: a.arrival_time ?? it.end_time,
         end_time: null,
         tz: it.end_tz,
+        // Don't inherit sort_order from the departure day — that index has
+        // no meaning on the arrival day. Reset to 0 so the start_time
+        // tiebreaker places the shadow at its real chronological position
+        // among the day's other items.
+        sort_order: 0,
         _arrivalShadow: true,
       };
       if (!byDate.has(arrDate)) byDate.set(arrDate, []);
@@ -149,10 +170,16 @@ export function buildDays(trip: { start_date: string; end_date: string }, items:
   dates.sort();
 
   return dates.map((date) => {
-    // Manual drag wins: sort by sort_order primarily so the user can
-    // park an 08:35 flight before an "anytime" item if they want.
-    // start_time is the tiebreaker — when sort_order is identical
-    // (default 0 for new items) we still bucket timed before untimed.
+    // Sort policy:
+    //  - sort_order is primary so manual drag-reorder always sticks for
+    //    every item kind (a user can pin an untimed market visit
+    //    between two timed flights if that's what their day looks like).
+    //  - start_time is the tiebreaker — when items share the same
+    //    sort_order (the default '0' for newly created items), timed
+    //    items naturally fall into chronological order and untimed
+    //    items drift to the end. So you get "automatic chronology
+    //    when you haven't reordered anything" without locking the
+    //    untimed group below the timed group permanently.
     const dayItems = (byDate.get(date) ?? []).slice().sort((a, b) => {
       if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
       const ta = a.start_time ?? '~~~';
@@ -167,8 +194,82 @@ export function buildDays(trip: { start_date: string; end_date: string }, items:
       warnings: detectWarnings(dayItems),
       dominant_tz: dominantTz(dayItems),
       transit_over: findCoveringTransit(items, date),
+      package_over: findCoveringPackage(items, date),
+      lodging: findActiveLodging(items, date),
     };
   });
+}
+
+/**
+ * A package "covers" any day strictly between its start_date and end_date.
+ * Start and end days have their own item / shadow rendered, so the banner
+ * fills the in-between days where there's no explicit entry.
+ */
+function findCoveringPackage(allItems: Item[], date: string): Item | null {
+  for (const it of allItems) {
+    if (it.kind !== 'package') continue;
+    let endDate: string | null = null;
+    try {
+      const a = JSON.parse(it.attributes_json) as { end_date?: string };
+      endDate = a.end_date ?? null;
+    } catch { /* skip */ }
+    if (!endDate) continue;
+    if (date > it.day_date && date < endDate) return it;
+  }
+  return null;
+}
+
+/**
+ * "Where am I sleeping at the end of this day?" Walks the trip's
+ * lodging-style items chronologically and tracks whether a stay is
+ * currently active on the given date.
+ *
+ * Two sources count as lodging:
+ *   - a `checkin` item, whose stay continues until a later `checkout` —
+ *     either at the same property (matched by location) or any checkout
+ *     after the checkin if no property name is set.
+ *   - a `package` item with `includes_lodging: 'yes'`, whose date range
+ *     (day_date through attributes.end_date) covers the night in question.
+ *
+ * Packages take precedence over standalone checkins because the user
+ * explicitly modeled the multi-day stay.
+ */
+function findActiveLodging(allItems: Item[], date: string): Item | null {
+  // 1) Packages with lodging that cover this night.
+  for (const it of allItems) {
+    if (it.kind !== 'package') continue;
+    let endDate: string | null = null;
+    let includesLodging = false;
+    try {
+      const a = JSON.parse(it.attributes_json) as { end_date?: string; includes_lodging?: string };
+      endDate = a.end_date ?? null;
+      includesLodging = a.includes_lodging === 'yes';
+    } catch { /* skip */ }
+    if (!includesLodging || !endDate) continue;
+    // Lodging applies to nights spent during the package, i.e. start day
+    // through the day BEFORE end_date (you sleep there each night until
+    // the morning you leave). Last night is end_date - 1.
+    if (date >= it.day_date && date < endDate) return it;
+  }
+  // 2) Most recent checkin that hasn't been closed by a checkout on or before this date.
+  const lodgingItems = allItems
+    .filter((i) => i.kind === 'checkin' || i.kind === 'checkout')
+    .filter((i) => i.day_date <= date)
+    .slice()
+    .sort((a, b) => a.day_date.localeCompare(b.day_date) || a.id - b.id);
+  let active: Item | null = null;
+  for (const it of lodgingItems) {
+    if (it.kind === 'checkin') {
+      active = it;
+    } else if (it.kind === 'checkout') {
+      // A checkout on the same date as the night counts as ending the stay
+      // for the night BEFORE — you're not sleeping there that night.
+      // (E.g. checkout on May 16 means May 15 is the last night.)
+      if (it.day_date === date) active = null;
+      else if (active && it.day_date > active.day_date) active = null;
+    }
+  }
+  return active;
 }
 
 function findCoveringTransit(allItems: Item[], date: string): Item | null {
@@ -220,41 +321,68 @@ export function enumerateDates(start: string, end: string): string[] {
 
 export function detectWarnings(items: Item[]): string[] {
   const out: string[] = [];
-  const kinds = new Set(items.map((i) => i.kind));
-  const hasMeal = items.some((i) => /\b(breakfast|lunch|dinner|meal)\b/i.test(i.title));
-  if (items.length > 0 && !kinds.has('reservation') && !hasMeal) {
+  // Arrival shadows are display-only — they shouldn't trigger warnings
+  // (the underlying transit item already lives on its departure day).
+  const real = items.filter((i) => !i._arrivalShadow);
+  const kinds = new Set(real.map((i) => i.kind));
+  const hasMealTitle = real.some((i) =>
+    /\b(breakfast|brunch|lunch|dinner|drinks|snack|meal)\b/i.test(i.title),
+  );
+  // A package with meals included counts as covered — no warning.
+  const packageCoversMeals = real.some((i) => {
+    if (i.kind !== 'package') return false;
+    try {
+      const a = JSON.parse(i.attributes_json) as { includes_meals?: string };
+      return a.includes_meals === 'yes' || a.includes_meals === 'some';
+    } catch { return false; }
+  });
+  if (real.length > 0 && !kinds.has('meal') && !kinds.has('reservation') && !hasMealTitle && !packageCoversMeals) {
     out.push('No meal plans yet — consider adding breakfast, lunch, or dinner.');
   }
 
   // Checkin = earliest possible; flag any timed item before it.
   // Checkout = latest possible; flag any timed item after it.
-  const checkin = items.find((i) => i.kind === 'checkin' && i.start_time);
-  const checkout = items.find((i) => i.kind === 'checkout' && i.start_time);
-  if (checkin) {
-    for (const it of items) {
-      if (it === checkin || !it.start_time || it.kind === 'checkout') continue;
+  //
+  // Skip these warnings entirely on travel days (any transit on the day):
+  // a morning errand before flying out is naturally before the destination
+  // hotel's check-in time; that's not a planning mistake.
+  const checkin = real.find((i) => i.kind === 'checkin' && i.start_time);
+  const checkout = real.find((i) => i.kind === 'checkout' && i.start_time);
+  const hasTransit = real.some((i) => i.kind === 'transit');
+  if (checkin && !hasTransit) {
+    for (const it of real) {
+      if (it === checkin || !it.start_time || it.kind === 'checkout' || it.kind === 'transit') continue;
       if (it.start_time < (checkin.start_time as string)) {
         out.push(`"${it.title}" at ${it.start_time} is before check-in (${checkin.start_time}).`);
       }
     }
   }
-  if (checkout) {
-    for (const it of items) {
-      if (it === checkout || !it.start_time || it.kind === 'checkin') continue;
+  if (checkout && !hasTransit) {
+    for (const it of real) {
+      if (it === checkout || !it.start_time || it.kind === 'checkin' || it.kind === 'transit') continue;
       if (it.start_time > (checkout.start_time as string)) {
         out.push(`"${it.title}" at ${it.start_time} is after check-out (${checkout.start_time}).`);
       }
     }
   }
-  const sorted = items
-    .filter((i) => !!i.start_time)
+  // Gap math: use end_time when present (so a 2h activity at 09:00 doesn't
+  // trigger a "5h gap" against a 14:00 next item — actual gap is 3h).
+  // Exclude check-in/check-out from gap calc — they're soft boundaries
+  // (earliest arrival / latest departure), not scheduled events. A 14:00
+  // check-in followed by a 19:00 flight isn't a "5h gap" of empty time;
+  // the user is just at the hotel.
+  const sorted = real
+    .filter((i) => !!i.start_time && i.kind !== 'checkin' && i.kind !== 'checkout')
     .slice()
     .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
   for (let i = 0; i < sorted.length - 1; i++) {
-    const [h1, m1] = (sorted[i].start_time ?? '00:00').split(':').map(Number);
-    const [h2, m2] = (sorted[i + 1].start_time ?? '00:00').split(':').map(Number);
+    const prev = sorted[i];
+    const next = sorted[i + 1];
+    const prevEnd = prev.end_time ?? prev.start_time ?? '00:00';
+    const [h1, m1] = prevEnd.split(':').map(Number);
+    const [h2, m2] = (next.start_time ?? '00:00').split(':').map(Number);
     const gap = h2 * 60 + m2 - (h1 * 60 + m1);
-    if (gap > 300) out.push(`${Math.round(gap / 60)}h gap after "${sorted[i].title}".`);
+    if (gap > 300) out.push(`${Math.round(gap / 60)}h gap after "${prev.title}".`);
   }
   return out;
 }

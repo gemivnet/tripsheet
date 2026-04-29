@@ -64,6 +64,13 @@ export function TripEditorPage({
     setDocs(r.docs);
   }, [tripId]);
 
+  const reloadTrip = useCallback(async (): Promise<void> => {
+    const r = await api.getTrip(tripId);
+    setTrip(r.trip);
+    setItems(r.items);
+    setParticipants(r.participants);
+  }, [tripId]);
+
   const refreshSuggestions = useCallback(async (): Promise<void> => {
     const r = await api.listSuggestions(tripId);
     setAiSuggestions((prev) => {
@@ -125,8 +132,20 @@ export function TripEditorPage({
   );
 
   const updateItem = useCallback(
-    async (id: number, patch: Partial<Item>): Promise<void> => {
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+    async (id: number, patch: Partial<Item> & { attributes?: Record<string, unknown> }): Promise<void> => {
+      // Optimistic update. If the patch includes structured attributes,
+      // also serialise into attributes_json so any consumer reading the
+      // stringified form (smartDisplay, findActiveLodging, …) sees the
+      // new values immediately instead of waiting on the API roundtrip.
+      setItems((prev) => prev.map((it) => {
+        if (it.id !== id) return it;
+        const next = { ...it, ...patch } as Item & { attributes?: Record<string, unknown> };
+        if (patch.attributes !== undefined) {
+          next.attributes_json = JSON.stringify(patch.attributes);
+          delete next.attributes;
+        }
+        return next;
+      }));
       try {
         const { item } = await api.updateItem(tripId, id, patch);
         setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...item, created_by_name: it.created_by_name } : it)));
@@ -351,6 +370,7 @@ export function TripEditorPage({
     days,
     docs,
     refreshDocs,
+    reloadTrip,
     participants,
     refreshParticipants,
     setItemParticipants,

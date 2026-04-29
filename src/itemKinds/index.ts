@@ -177,7 +177,43 @@ function buildLodging(kind: 'checkin' | 'checkout', label: string, hint: string)
 const checkin = buildLodging('checkin', 'Check-in', 'Check-in time sets the earliest arrival on the timeline.');
 const checkout = buildLodging('checkout', 'Check-out', 'Check-out time sets the latest departure on the timeline.');
 
-// ─── reservation (restaurant / tour / ticket) ───────────────────────────────
+// ─── meal ───────────────────────────────────────────────────────────────────
+
+const MealAttrs = z.object({
+  meal_type: z.enum(['breakfast', 'brunch', 'lunch', 'dinner', 'late-night', 'snack', 'drinks']).optional(),
+  venue_name: z.string().max(200).optional(),
+  address: z.string().max(300).optional(),
+  cuisine: z.string().max(60).optional(),
+  party_size: z.number().int().min(1).max(50).optional(),
+  price_level: z.enum(['$', '$$', '$$$', '$$$$']).optional(),
+  dress_code: z.string().max(60).optional(),
+}).partial();
+
+const meal: ItemKindDef = {
+  kind: 'meal',
+  subtype: 'meal',
+  label: 'Meal',
+  hint: 'Breakfast, lunch, dinner, drinks. Time + reservation are both optional.',
+  fields: [
+    { name: 'meal_type',   label: 'Which meal',   type: 'select', options: ['breakfast', 'brunch', 'lunch', 'dinner', 'late-night', 'snack', 'drinks'] },
+    { name: 'venue_name',  label: 'Venue',        type: 'text', placeholder: 'Optional' },
+    { name: 'address',     label: 'Address',      type: 'text' },
+    { name: 'cuisine',     label: 'Cuisine',      type: 'text', placeholder: 'e.g. Italian, ramen' },
+    { name: 'party_size',  label: 'Party of',     type: 'number' },
+    { name: 'price_level', label: 'Price',        type: 'select', options: ['$', '$$', '$$$', '$$$$'] },
+    { name: 'dress_code',  label: 'Dress code',   type: 'text' },
+    // Confirmation # is the base item field — set it if you have a reservation, leave blank otherwise.
+  ],
+  attrs: MealAttrs,
+  derive(attrs) {
+    const a = attrs as z.infer<typeof MealAttrs>;
+    return {
+      location: a.venue_name ?? a.address ?? null,
+    };
+  },
+};
+
+// ─── reservation (tour / show / spa / non-meal booking) ─────────────────────
 
 const ReservationAttrs = z.object({
   venue_name: z.string().max(200).optional(),
@@ -196,7 +232,7 @@ const reservation: ItemKindDef = {
   kind: 'reservation',
   subtype: 'reservation',
   label: 'Reservation',
-  hint: 'Set your booking time with the generic Time field above. Venue hours go in Opens/Closes.',
+  hint: 'Tours, shows, spa, non-meal bookings. For meals, use the Meal kind instead.',
   fields: [
     { name: 'venue_name',  label: 'Venue',        type: 'text' },
     { name: 'address',     label: 'Address',      type: 'text' },
@@ -268,6 +304,44 @@ const activity: ItemKindDef = {
   },
 };
 
+// ─── package (multi-day all-inclusive: tour, cruise, retreat, resort) ───────
+
+const PackageAttrs = z.object({
+  operator: z.string().max(200).optional(),  // tour company / resort / cruise line
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  includes_lodging: z.enum(['yes', 'no']).optional(),
+  includes_meals: z.enum(['yes', 'no', 'some']).optional(),
+  meal_plan: z.string().max(200).optional(),  // free-form: "All meals included", "Breakfast only", etc.
+  price: z.string().max(40).optional(),
+  cancellation: z.string().max(200).optional(),
+}).partial();
+
+const packageDef: ItemKindDef = {
+  kind: 'package',
+  subtype: 'package',
+  label: 'Multi-day package',
+  hint: 'Tours, cruises, all-inclusive resorts, retreats. Spans multiple days; can include lodging and meals.',
+  fields: [
+    { name: 'operator',         label: 'Operator',          type: 'text',   placeholder: 'Tour company / resort / cruise line' },
+    { name: 'end_date',         label: 'End date',          type: 'date' },
+    { name: 'end_time',         label: 'End time',          type: 'time' },
+    { name: 'includes_lodging', label: 'Lodging included?', type: 'select', options: ['yes', 'no'] },
+    { name: 'includes_meals',   label: 'Meals included?',   type: 'select', options: ['yes', 'no', 'some'] },
+    { name: 'meal_plan',        label: 'Meal plan',         type: 'text',   placeholder: 'e.g. All meals · Breakfast only' },
+    { name: 'price',            label: 'Price',             type: 'text' },
+    { name: 'cancellation',     label: 'Cancellation',      type: 'text' },
+  ],
+  attrs: PackageAttrs,
+  derive(attrs) {
+    const a = attrs as z.infer<typeof PackageAttrs>;
+    return {
+      location: a.operator ?? null,
+      end_time: a.end_time ?? null,
+    };
+  },
+};
+
 // ─── option / note (no extra fields beyond the common base) ─────────────────
 
 const optionDef: ItemKindDef = {
@@ -284,7 +358,7 @@ const noteDef: ItemKindDef = {
 // ─── registry ───────────────────────────────────────────────────────────────
 
 export const KINDS: ItemKindDef[] = [
-  flight, checkin, checkout, reservation, activity, optionDef, noteDef,
+  flight, checkin, checkout, meal, reservation, activity, packageDef, optionDef, noteDef,
 ];
 
 const BY_KIND: Record<string, ItemKindDef> = Object.fromEntries(

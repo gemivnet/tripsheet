@@ -3,19 +3,23 @@
  * this union is the source of truth for what's valid.
  */
 export type ItemKind =
+  | 'meal'
   | 'reservation'
   | 'checkin'
   | 'checkout'
   | 'activity'
+  | 'package'
   | 'option'
   | 'note'
   | 'transit';
 
 export const ITEM_KINDS: readonly ItemKind[] = [
+  'meal',
   'reservation',
   'checkin',
   'checkout',
   'activity',
+  'package',
   'option',
   'note',
   'transit',
