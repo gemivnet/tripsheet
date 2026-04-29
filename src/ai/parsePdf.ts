@@ -617,30 +617,26 @@ function normalizeItemKind(raw: string): string {
   if ((ITEM_KINDS as readonly string[]).includes(lower)) return lower;
   // Map common parse-time labels back onto the app's canonical set.
   if (lower === 'lodging' || lower === 'hotel' || lower === 'stay') return 'checkin';
-  if (lower === 'flight' || lower === 'train' || lower === 'drive' || lower === 'transfer')
-    return 'transit';
+  if (['flight', 'train', 'drive', 'transfer'].includes(lower)) return 'transit';
   if (
-    lower === 'restaurant' ||
-    lower === 'dining' ||
-    lower === 'breakfast' ||
-    lower === 'brunch' ||
-    lower === 'lunch' ||
-    lower === 'dinner' ||
-    lower === 'drinks' ||
-    lower === 'bar' ||
-    lower === 'cafe' ||
-    lower === 'snack'
-  )
+    [
+      'restaurant',
+      'dining',
+      'breakfast',
+      'brunch',
+      'lunch',
+      'dinner',
+      'drinks',
+      'bar',
+      'cafe',
+      'snack',
+    ].includes(lower)
+  ) {
     return 'meal';
-  if (
-    lower === 'tour' ||
-    lower === 'cruise' ||
-    lower === 'retreat' ||
-    lower === 'resort' ||
-    lower === 'all-inclusive' ||
-    lower === 'all_inclusive'
-  )
+  }
+  if (['tour', 'cruise', 'retreat', 'resort', 'all-inclusive', 'all_inclusive'].includes(lower)) {
     return 'package';
+  }
   return 'activity';
 }
 
