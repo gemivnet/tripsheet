@@ -12,6 +12,13 @@ coverage/
 reports/
 .claude/
 
+# OS / editor junk
+.DS_Store
+*.log
+*.swp
+*.swo
+*~
+
 # Persistent app state — SQLite database and uploaded reference PDFs
 data/
 

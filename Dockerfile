@@ -38,7 +38,7 @@ COPY config.example.yaml ./config.example.yaml
 RUN mkdir -p /app/data/uploads
 
 ENV NODE_ENV=production
-ENV TZ=America/Chicago
+ENV TZ=${TZ:-UTC}
 ENV DATA_DIR=/app/data
 
 EXPOSE 3000
