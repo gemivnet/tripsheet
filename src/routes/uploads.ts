@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, rmSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import type { DB } from '../db/index.js';
 import type { Config } from '../config.js';
@@ -92,7 +92,9 @@ export function uploadsRouter(db: DB, config: Config, dataDir: string): Router {
       'Content-Disposition',
       `inline; filename="${encodeURIComponent(doc.source_filename)}"`,
     );
-    res.sendFile(join(uploadDir, doc.stored_filename));
+    // sendFile requires an absolute path unless `root` is given; uploadDir is relative in
+    // local dev, which threw. `root` also confines the send to that directory.
+    res.sendFile(doc.stored_filename, { root: resolve(uploadDir) });
   });
 
   router.get('/:id', (req, res) => {

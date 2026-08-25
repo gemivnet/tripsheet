@@ -480,7 +480,10 @@ const ActivityAttrs = z
       .string()
       .regex(/^\d{2}:\d{2}$/)
       .optional(),
-    ticket_required: z.boolean().optional(),
+    // 'yes' | 'no', not boolean: the form field below is a select over those two strings,
+    // parse-pdf.md asks the model for the same, and Timeline.tsx compares === 'yes'. As a
+    // boolean this never validated, which took the whole attributes object down with it.
+    ticket_required: z.enum(['yes', 'no']).optional(),
     price: z.string().max(40).optional(),
     duration_min: z.number().int().min(1).max(1440).optional(),
   })
@@ -644,5 +647,20 @@ export function defForKind(kind: ItemKind): ItemKindDef {
 export function safeParseAttrs(kind: ItemKind, raw: unknown): Record<string, unknown> {
   const def = defForKind(kind);
   const result = def.attrs.safeParse(raw ?? {});
-  return result.success ? result.data : {};
+  if (result.success) return result.data;
+
+  // One bad field must not destroy the rest. The editor resubmits every attribute on any
+  // change, so returning {} here wiped venue_name, address, opens_at, closes_at, price and
+  // duration_min whenever a single value failed to validate -- silently, behind a 200.
+  // Every per-kind schema is a .partial() object, so salvage field by field instead.
+  const shape = (def.attrs as unknown as { shape?: Record<string, z.ZodTypeAny> }).shape;
+  if (!shape) return {};
+  const source = (raw ?? {}) as Record<string, unknown>;
+  const salvaged: Record<string, unknown> = {};
+  for (const [key, schema] of Object.entries(shape)) {
+    if (source[key] === undefined) continue;
+    const one = schema.safeParse(source[key]);
+    if (one.success) salvaged[key] = one.data;
+  }
+  return salvaged;
 }

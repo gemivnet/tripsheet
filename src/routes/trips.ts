@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
+// Type-only: erased at compile time, so puppeteer-core stays a lazy runtime import.
+import type { Browser } from 'puppeteer-core';
 import type { DB } from '../db/index.js';
 import {
   ITEM_KINDS,
@@ -147,6 +149,9 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
     const rawItems = listItems.all(id);
 
     void (async () => {
+      // Declared out here so the finally can always close it: any throw after launch
+      // (setContent, page.pdf) otherwise leaks a headless Chromium process per request.
+      let browser: Browser | undefined;
       try {
         const { default: puppeteer } = await import('puppeteer-core');
         const executablePath =
@@ -156,7 +161,7 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
             : '/usr/bin/chromium-browser');
 
         const html = buildPdfHtml(trip, rawItems, mode);
-        const browser = await puppeteer.launch({
+        browser = await puppeteer.launch({
           executablePath,
           args: ['--no-sandbox', '--disable-setuid-sandbox'],
           headless: true,
@@ -168,8 +173,6 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
           printBackground: true,
           margin: { top: '0', right: '0', bottom: '0', left: '0' },
         });
-        await browser.close();
-
         const safeName = trip.name
           .replace(/[^\w\s-]/g, '')
           .trim()
@@ -180,7 +183,9 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
         res.send(pdf);
       } catch (err) {
         console.error('[PDF export]', err);
-        res.status(500).json({ error: 'PDF generation failed', detail: String(err) });
+        res.status(500).json({ error: 'PDF generation failed' });
+      } finally {
+        await browser?.close().catch(() => {});
       }
     })();
   });
@@ -461,15 +466,13 @@ export function deleteDay(
         updateDay.run(d.toISOString().slice(0, 10), now, it.id);
         shifted += 1;
       }
-      if (date === trip.start_date) {
-        const d = new Date(trip.start_date + 'T12:00:00');
-        d.setDate(d.getDate() + 1);
-        nextStart = d.toISOString().slice(0, 10);
-      } else {
-        const d = new Date(trip.end_date + 'T12:00:00');
-        d.setDate(d.getDate() - 1);
-        nextEnd = d.toISOString().slice(0, 10);
-      }
+      // Shift mode always shortens at the END, whichever day was removed. Every later item
+      // has just slid back one day, so advancing start_date instead would move the whole
+      // trip out from under its own items: the item that landed on the old first day would
+      // fall outside the range entirely and vanish from the day-enumerated timeline.
+      const d = new Date(trip.end_date + 'T12:00:00');
+      d.setDate(d.getDate() - 1);
+      nextEnd = d.toISOString().slice(0, 10);
     } else if (date === trip.end_date) {
       const d = new Date(trip.end_date + 'T12:00:00');
       d.setDate(d.getDate() - 1);

@@ -6,13 +6,15 @@ import { queueParse } from './ai/parsePdf.js';
 
 /**
  * On server boot:
- * 1. Scan `data/uploads/` for PDFs not yet tracked in `reference_docs`
+ * 1. Recover any docs left in `pending` or `running` from a previous
+ *    session — the server may have restarted mid-parse, which would
+ *    otherwise leave those docs stuck forever.
+ * 2. Scan `data/uploads/` for PDFs not yet tracked in `reference_docs`
  *    and create pending rows for them. This handles the operator dropping
  *    sample PDFs into the uploads folder directly, before any real user
  *    has uploaded anything through the UI.
- * 2. Recover any docs left in `pending` or `running` from a previous
- *    session — the server may have restarted mid-parse, which would
- *    otherwise leave those docs stuck forever.
+ *
+ * Recovery runs first on purpose — see the comment on the recovery block.
  *
  * If no user exists yet, new rows are not created (since `uploaded_by` is
  * NOT NULL). The scan runs again on the next boot, after signup.
@@ -25,6 +27,31 @@ export function scanExistingUploads(db: DB, dataDir: string): number {
   } catch {
     // `data/uploads/` doesn't exist yet — nothing to scan, but we still
     // want to run the stale-parse recovery below.
+  }
+
+  // Recover docs stuck in pending/running from a prior boot. Reset them to pending (so
+  // queueParse does the status flip) and re-queue.
+  //
+  // This MUST run before the file scan below. The scan inserts new rows with status
+  // 'pending', so if recovery ran afterwards it would select those brand-new rows too and
+  // queue every newly discovered PDF a second time — double Anthropic spend at
+  // max_tokens: 32_000 per parse, and two trips created from one document.
+  const stuck = db
+    .prepare<
+      [],
+      ReferenceDocRow
+    >(`SELECT * FROM reference_docs WHERE parse_status IN ('pending', 'running')`)
+    .all();
+  if (stuck.length > 0) {
+    db.prepare(
+      `UPDATE reference_docs SET parse_status = 'pending', parse_error = NULL
+       WHERE parse_status IN ('pending', 'running')`,
+    ).run();
+    for (const doc of stuck) {
+      // queueParse is a no-op if no API key is configured; the row stays
+      // pending and the next boot will try again.
+      queueParse(db, doc, uploadDir);
+    }
   }
 
   const firstUser = db.prepare<[], UserRow>('SELECT * FROM users ORDER BY id ASC LIMIT 1').get();
@@ -53,26 +80,6 @@ export function scanExistingUploads(db: DB, dataDir: string): number {
         .get(id)!;
       queueParse(db, doc, uploadDir);
       created += 1;
-    }
-  }
-
-  // Recover docs stuck in pending/running from a prior boot. Reset them
-  // to pending (so queueParse does the status flip) and re-queue.
-  const stuck = db
-    .prepare<
-      [],
-      ReferenceDocRow
-    >(`SELECT * FROM reference_docs WHERE parse_status IN ('pending', 'running')`)
-    .all();
-  if (stuck.length > 0) {
-    db.prepare(
-      `UPDATE reference_docs SET parse_status = 'pending', parse_error = NULL
-       WHERE parse_status IN ('pending', 'running')`,
-    ).run();
-    for (const doc of stuck) {
-      // queueParse is a no-op if no API key is configured; the row stays
-      // pending and the next boot will try again.
-      queueParse(db, doc, uploadDir);
     }
   }
 
