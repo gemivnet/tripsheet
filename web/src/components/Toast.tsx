@@ -111,27 +111,30 @@ function toastStyle(kind: ToastKind): React.CSSProperties {
     fontWeight: 500,
     lineHeight: 1.4,
   };
-  if (kind === 'error')
+  if (kind === 'error') {
     return {
       ...base,
       background: 'oklch(96% 0.04 25)',
       color: 'oklch(35% 0.16 25)',
       border: '1.5px solid oklch(60% 0.16 25)',
     };
-  if (kind === 'success')
+  }
+  if (kind === 'success') {
     return {
       ...base,
       background: 'oklch(96% 0.04 150)',
       color: 'oklch(32% 0.13 150)',
       border: '1.5px solid oklch(58% 0.14 150)',
     };
-  if (kind === 'warning')
+  }
+  if (kind === 'warning') {
     return {
       ...base,
       background: 'oklch(97% 0.05 75)',
       color: 'oklch(40% 0.13 65)',
       border: '1.5px solid oklch(62% 0.14 65)',
     };
+  }
   return {
     ...base,
     background: 'oklch(98% 0.01 220)',

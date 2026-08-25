@@ -190,6 +190,7 @@ function TripCard({
 }): JSX.Element {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
     <div
       className="trip-card"
@@ -197,6 +198,11 @@ function TripCard({
       style={{ position: 'relative' }}
     >
       <h3>{trip.name}</h3>
+      {error !== null && (
+        <div role="alert" style={{ color: 'oklch(58% 0.16 25)', fontSize: 11.5, marginTop: 4 }}>
+          {error}
+        </div>
+      )}
       <div className="meta">
         {trip.start_date} → {trip.end_date}
         {trip.destination ? ` · ${trip.destination}` : ''}
@@ -207,21 +213,29 @@ function TripCard({
             ? 'Click again to confirm — trip & all items will be deleted'
             : 'Delete this trip'
         }
-        onClick={async (e) => {
+        onClick={(e) => {
+          // Synchronous, and stays outside the async body on purpose: propagation is
+          // decided during dispatch, so this must not depend on when the IIFE runs.
           e.stopPropagation();
-          if (!confirming) {
-            setConfirming(true);
-            setTimeout(() => setConfirming(false), 3000);
-            return;
-          }
-          setBusy(true);
-          try {
-            await api.deleteTrip(trip.id);
-            await onDeleted();
-          } finally {
-            setBusy(false);
-            setConfirming(false);
-          }
+          void (async () => {
+            if (!confirming) {
+              setConfirming(true);
+              setTimeout(() => setConfirming(false), 3000);
+              return;
+            }
+            setBusy(true);
+            try {
+              await api.deleteTrip(trip.id);
+              await onDeleted();
+            } catch (err) {
+              // Previously try/finally with no catch: a failed delete rejected into
+              // nothing, the card stayed put, and the user got no indication why.
+              setError(err instanceof Error ? err.message : 'Could not delete this trip.');
+            } finally {
+              setBusy(false);
+              setConfirming(false);
+            }
+          })();
         }}
         disabled={busy}
         style={{

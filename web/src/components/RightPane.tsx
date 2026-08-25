@@ -22,7 +22,7 @@ import { KindAttributes } from './KindAttributes.js';
 import { useToast } from './Toast.js';
 import { PreviewTab } from './PreviewTab.js';
 
-const TABS: Array<{ id: RightTab; icon: string }> = [
+const TABS: { id: RightTab; icon: string }[] = [
   {
     id: 'event',
     icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
@@ -242,7 +242,7 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
         // Attributes are committed by KindAttributes itself (debounced).
         return;
       }
-      void updateItem(selected.id, { [k]: blankToNull(v) } as Partial<Item>);
+      void updateItem(selected.id, { [k]: blankToNull(v) });
     }
   }
 
@@ -470,10 +470,7 @@ function EventTab({ state }: { state: EditorState }): JSX.Element {
           control={{
             mode: 'edit',
             itemId: selected.id,
-            updateItem: updateItem as (
-              id: number,
-              patch: { attributes?: Record<string, unknown> },
-            ) => Promise<unknown>,
+            updateItem,
           }}
         />
       )}
@@ -689,7 +686,7 @@ function ParticipantPicker({
   attended,
   onChange,
 }: {
-  participants: Array<{ id: number; display_name: string; color_hue: number | null }>;
+  participants: { id: number; display_name: string; color_hue: number | null }[];
   attended: number[];
   onChange: (ids: number[]) => void;
 }): JSX.Element {
@@ -1296,7 +1293,7 @@ function SuggestionCard({
 }: {
   suggestion: Suggestion;
   items: Item[];
-  days: Array<{ date: string; label: string }>;
+  days: { date: string; label: string }[];
   onAccept: (s: Suggestion) => void;
   onModify: (s: Suggestion) => void;
   onReject: (id: number) => void;
@@ -1317,10 +1314,9 @@ function SuggestionCard({
     setTimeout(() => onReject(suggestion.id), 240);
   };
 
-  const acceptable =
-    suggestion.kind === 'add_item' ||
-    suggestion.kind === 'note' ||
-    (!!target && suggestion.kind !== 'add_item');
+  // The trailing `&& suggestion.kind !== 'add_item'` that used to be here could never be
+  // false: the first clause already short-circuits for add_item. Behaviour is unchanged.
+  const acceptable = suggestion.kind === 'add_item' || suggestion.kind === 'note' || !!target;
   const modifiable =
     suggestion.kind === 'add_item' ||
     suggestion.kind === 'modify_item' ||
@@ -1416,9 +1412,9 @@ function SuggestionBody({
   kind: Suggestion['kind'];
   payload: Record<string, unknown>;
   target: Item | null;
-  days: Array<{ date: string; label: string }>;
+  days: { date: string; label: string }[];
 }): JSX.Element {
-  const str = (k: string): string => (typeof payload[k] === 'string' ? (payload[k] as string) : '');
+  const str = (k: string): string => (typeof payload[k] === 'string' ? payload[k] : '');
 
   if (kind === 'add_item') {
     const title = String(payload.title ?? '(untitled)');
@@ -1551,7 +1547,7 @@ function formatVal(v: unknown): string {
   return String(v);
 }
 
-function dayLabel(date: string, days: Array<{ date: string; label: string }>): string {
+function dayLabel(date: string, days: { date: string; label: string }[]): string {
   if (!date) return '';
   return days.find((d) => d.date === date)?.label ?? date;
 }
@@ -1567,7 +1563,7 @@ function suggBtn(variant: 'accept' | 'modify' | 'reject'): React.CSSProperties {
     border: '1.5px solid',
     transition: 'all 0.15s',
   };
-  if (variant === 'accept')
+  if (variant === 'accept') {
     return {
       ...base,
       background: 'var(--accent)',
@@ -1575,6 +1571,7 @@ function suggBtn(variant: 'accept' | 'modify' | 'reject'): React.CSSProperties {
       borderColor: 'var(--accent)',
       flex: 1.3,
     };
+  }
   return {
     ...base,
     background: 'transparent',
@@ -1759,9 +1756,7 @@ function PdfTab({ state }: { state: EditorState }): JSX.Element {
             </button>
           ))}
         </div>
-        {selected && selected.parse_status === 'complete' && (
-          <ReimportButton state={state} doc={selected} />
-        )}
+        {selected?.parse_status === 'complete' && <ReimportButton state={state} doc={selected} />}
         {selected && (
           <DocDeleteButton
             doc={selected}
@@ -1860,23 +1855,25 @@ function ReimportButton({ state, doc }: { state: EditorState; doc: ReferenceDoc 
           : `Reimport from "${doc.title}" (rebuilds the trip from scratch)`
       }
       disabled={busy}
-      onClick={async () => {
-        if (!confirming) {
-          setConfirming(true);
-          setTimeout(() => setConfirming(false), 4000);
-          return;
-        }
-        setBusy(true);
-        try {
-          const r = await api.reimportTrip(state.trip.id, doc.id);
-          await state.reloadTrip();
-          toast.success(`Reimport complete — ${r.deleted} deleted, ${r.created} created.`);
-        } catch (e) {
-          toast.error(`Reimport failed — ${e instanceof Error ? e.message : String(e)}`);
-        } finally {
-          setBusy(false);
-          setConfirming(false);
-        }
+      onClick={() => {
+        void (async () => {
+          if (!confirming) {
+            setConfirming(true);
+            setTimeout(() => setConfirming(false), 4000);
+            return;
+          }
+          setBusy(true);
+          try {
+            const r = await api.reimportTrip(state.trip.id, doc.id);
+            await state.reloadTrip();
+            toast.success(`Reimport complete — ${r.deleted} deleted, ${r.created} created.`);
+          } catch (e) {
+            toast.error(`Reimport failed — ${e instanceof Error ? e.message : String(e)}`);
+          } finally {
+            setBusy(false);
+            setConfirming(false);
+          }
+        })();
       }}
       style={{
         padding: '6px 10px',
@@ -1915,20 +1912,22 @@ function DocDeleteButton({
           : `Delete "${doc.title}"`
       }
       disabled={busy}
-      onClick={async () => {
-        if (!confirming) {
-          setConfirming(true);
-          setTimeout(() => setConfirming(false), 3000);
-          return;
-        }
-        setBusy(true);
-        try {
-          await api.deleteDoc(doc.id);
-          onDeleted();
-        } finally {
-          setBusy(false);
-          setConfirming(false);
-        }
+      onClick={() => {
+        void (async () => {
+          if (!confirming) {
+            setConfirming(true);
+            setTimeout(() => setConfirming(false), 3000);
+            return;
+          }
+          setBusy(true);
+          try {
+            await api.deleteDoc(doc.id);
+            onDeleted();
+          } finally {
+            setBusy(false);
+            setConfirming(false);
+          }
+        })();
       }}
       style={{
         padding: 0,

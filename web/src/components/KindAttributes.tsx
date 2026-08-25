@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, type Item, type ItemKind, type KindDef, type KindFieldDef } from '../api.js';
+import { api, type ItemKind, type KindDef, type KindFieldDef } from '../api.js';
 import { inputStyle, labelStyle } from './shared.js';
 
 let kindsCache: KindDef[] | null = null;
@@ -37,7 +37,7 @@ export function KindAttributes({
 
   // Re-sync local state when the parent swaps to a different item.
   useEffect(() => {
-    setAttrs(initialAttrs); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    setAttrs(initialAttrs);
   }, [JSON.stringify(initialAttrs)]);
   useEffect(() => {
     if (kindsCache) return;

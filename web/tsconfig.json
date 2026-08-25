@@ -1,0 +1,27 @@
+{
+  // web/ is bundled by esbuild, which strips types without checking them, and the root
+  // tsconfig.json excludes this directory. So these ~8.2k lines were never type-checked
+  // or typed-linted: web/src/api.ts had an ItemKind union missing two of the server's
+  // nine kinds, and TripEditor built a Trip without the slug field migration 0006 added.
+  //
+  // It lives here, named tsconfig.json, because typescript-eslint's projectService
+  // resolves the *nearest file of that name*; a tsconfig.web.json at the root is found
+  // by `tsc -p` but never by the linter.
+  //
+  // noEmit: this exists to check. The real build is web/build.mjs.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist"]
+}

@@ -138,13 +138,11 @@ function DaySection({
     <section
       className="preview-day"
       data-mode={mode}
-      style={
-        {
-          marginBottom: 28,
-          // per-day mode forces a page break after each day on print
-          breakAfter: mode === 'per-day' ? 'page' : undefined,
-        } as React.CSSProperties
-      }
+      style={{
+        marginBottom: 28,
+        // per-day mode forces a page break after each day on print
+        breakAfter: mode === 'per-day' ? 'page' : undefined,
+      }}
     >
       <div
         style={{

@@ -17,7 +17,7 @@ type View = { kind: 'trips' } | { kind: 'trip'; id: number | string };
  * the trip without first translating slug → numeric id.
  */
 function viewFromPath(): View {
-  const m = window.location.pathname.match(/^\/t\/([0-9A-Za-z]+)\/?$/);
+  const m = /^\/t\/([0-9A-Za-z]+)\/?$/.exec(window.location.pathname);
   if (m) return { kind: 'trip', id: m[1] };
   return { kind: 'trips' };
 }
@@ -56,12 +56,13 @@ export function App(): JSX.Element {
   }, []);
 
   if (loading) return <div />;
-  if (!user)
+  if (!user) {
     return (
       <ToastProvider>
         <LoginPage onSignedIn={setUser} />
       </ToastProvider>
     );
+  }
 
   if (view.kind === 'trip') {
     return (

@@ -251,8 +251,9 @@ export function TripEditorPage({
           void api.updateItem(tripId, it.id, patch);
         });
         return prev.map((it) => {
-          if (it.id === itemId)
+          if (it.id === itemId) {
             return { ...it, day_date: toDate, sort_order: sortMap.get(it.id) ?? 0 };
+          }
           if (sortMap.has(it.id)) return { ...it, sort_order: sortMap.get(it.id)! };
           return it;
         });
@@ -438,6 +439,7 @@ export function TripEditorPage({
       goals: null,
       notes: null,
       default_tz: null,
+      slug: null,
     },
     items,
     days,

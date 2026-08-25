@@ -653,7 +653,7 @@ export function safeParseAttrs(kind: ItemKind, raw: unknown): Record<string, unk
   // change, so returning {} here wiped venue_name, address, opens_at, closes_at, price and
   // duration_min whenever a single value failed to validate -- silently, behind a 200.
   // Every per-kind schema is a .partial() object, so salvage field by field instead.
-  const shape = (def.attrs as unknown as { shape?: Record<string, z.ZodTypeAny> }).shape;
+  const { shape } = def.attrs as unknown as { shape?: Record<string, z.ZodTypeAny> };
   if (!shape) return {};
   const source = (raw ?? {}) as Record<string, unknown>;
   const salvaged: Record<string, unknown> = {};

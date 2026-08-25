@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - run: corepack enable
 
@@ -30,6 +30,12 @@ jobs:
 
       - name: ESLint
         run: yarn lint
+
+      - name: Typecheck
+        # Covers web/ as well as src/. esbuild strips types without checking them, so
+        # without this the SPA ships whatever it likes: an ItemKind union missing two
+        # of the server's nine kinds got through exactly this way.
+        run: yarn typecheck
 
       - name: Prettier
         run: yarn format:check
@@ -42,7 +48,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - run: corepack enable
 
@@ -108,7 +114,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - run: corepack enable
 

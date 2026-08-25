@@ -16,11 +16,16 @@ export interface Trip {
   default_tz: string | null;
 }
 
+// Must stay in step with ITEM_KINDS in src/types.ts. 'meal' and 'package' were added
+// server-side and never mirrored here; nothing caught it because web/ was outside both
+// the lint and the typecheck until now.
 export type ItemKind =
+  | 'meal'
   | 'reservation'
   | 'checkin'
   | 'checkout'
   | 'activity'
+  | 'package'
   | 'option'
   | 'note'
   | 'transit';
@@ -141,10 +146,20 @@ export interface ChatMessage {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  // Two traps here, both latent only because nothing passes headers yet.
+  // 1. HeadersInit is `Headers | string[][] | Record<string,string>`. Object-spreading
+  //    the first two forms yields indices or nothing, silently dropping the headers.
+  //    Round-tripping through Headers normalises all three.
+  // 2. `headers` must come AFTER `...init`, or init's own headers replace the merged
+  //    object wholesale and the content-type default is lost.
+  const headers = new Headers({ 'content-type': 'application/json' });
+  if (init?.headers) {
+    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+  }
   const res = await fetch(url, {
-    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
     credentials: 'same-origin',
     ...init,
+    headers,
   });
   if (!res.ok) {
     const text = await res.text();

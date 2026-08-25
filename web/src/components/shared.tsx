@@ -176,7 +176,7 @@ export function Avatar({
 // ─── Type pills / dots ───────────────────────────────────────────────────────
 
 export function TypeDot({ kind, size = 8 }: { kind: ItemKind; size?: number }): JSX.Element {
-  const hue = KIND_META[kind].hue;
+  const { hue } = KIND_META[kind];
   return (
     <div
       style={{
@@ -465,8 +465,9 @@ function findCoveringTransit(allItems: Item[], date: string): Item | null {
         arrival_day_offset?: number;
       };
       if (a.departure_date) depDate = a.departure_date;
-      if (a.arrival_date) arrDate = a.arrival_date;
-      else if (a.arrival_day_offset && a.arrival_day_offset > 0) {
+      if (a.arrival_date) {
+        arrDate = a.arrival_date;
+      } else if (a.arrival_day_offset && a.arrival_day_offset > 0) {
         const end = new Date(depDate + 'T12:00:00Z');
         end.setUTCDate(end.getUTCDate() + a.arrival_day_offset);
         arrDate = end.toISOString().slice(0, 10);
@@ -629,18 +630,20 @@ export function detectWarnings(items: Item[]): string[] {
   const hasTransit = real.some((i) => i.kind === 'transit');
   if (checkin && !hasTransit) {
     for (const it of real) {
-      if (it === checkin || !it.start_time || it.kind === 'checkout' || it.kind === 'transit')
+      if (it === checkin || !it.start_time || it.kind === 'checkout' || it.kind === 'transit') {
         continue;
-      if (it.start_time < (checkin.start_time as string)) {
+      }
+      if (it.start_time < checkin.start_time!) {
         out.push(`"${it.title}" at ${it.start_time} is before check-in (${checkin.start_time}).`);
       }
     }
   }
   if (checkout && !hasTransit) {
     for (const it of real) {
-      if (it === checkout || !it.start_time || it.kind === 'checkin' || it.kind === 'transit')
+      if (it === checkout || !it.start_time || it.kind === 'checkin' || it.kind === 'transit') {
         continue;
-      if (it.start_time > (checkout.start_time as string)) {
+      }
+      if (it.start_time > checkout.start_time!) {
         out.push(`"${it.title}" at ${it.start_time} is after check-out (${checkout.start_time}).`);
       }
     }

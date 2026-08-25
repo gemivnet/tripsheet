@@ -16,13 +16,14 @@
     "test": "node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest",
     "test:watch": "node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --watch",
     "test:coverage": "node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --coverage",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
+    "lint": "eslint src/ web/src/",
+    "lint:fix": "eslint src/ web/src/ --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx}' 'web/src/**/*.{ts,tsx}'",
     "format:check": "prettier --check 'src/**/*.{ts,tsx}' 'web/src/**/*.{ts,tsx}'",
     "changeset": "changeset",
     "release": "bash scripts/release.sh",
-    "prepare": "husky"
+    "prepare": "husky",
+    "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json"
   },
   "lint-staged": {
     "{src,web/src}/**/*.{ts,tsx}": [
@@ -32,7 +33,7 @@
   },
   "license": "AGPL-3.0-only",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -42,7 +43,7 @@
     "dotenv": "^16.5.0",
     "express": "^5.2.1",
     "js-yaml": "^4.1.0",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.0.2",
     "puppeteer-core": "^24.42.0",
     "react": "^19.1.0",
     "react-dom": "^19.2.4",

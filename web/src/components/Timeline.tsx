@@ -32,7 +32,7 @@ export function Timeline({ state }: { state: EditorState }): JSX.Element {
       ))}
       <div style={{ textAlign: 'center', paddingTop: 4 }}>
         <button
-          onClick={addDay}
+          onClick={() => void addDay()}
           style={{
             padding: '8px 20px',
             borderRadius: 16,
@@ -609,8 +609,7 @@ function groupIntoParallelRows(items: Item[]): Item[][] {
     // Find the last row that only has restricted items with non-overlapping sets
     const lastRow = rows[rows.length - 1];
     if (
-      lastRow &&
-      lastRow.every((it) => {
+      lastRow?.every((it) => {
         const otherIds = it.participant_ids;
         if (!otherIds || otherIds.length === 0) return false;
         return !otherIds.some((id) => ids.includes(id));
@@ -873,7 +872,7 @@ function utcOffsetMinutes(date: Date, tz: string): number {
 function wallClockToUtc(date: string, time: string, tz: string): number {
   const naive = new Date(`${date}T${time}:00Z`).getTime();
   let off = utcOffsetMinutes(new Date(naive), tz);
-  let utc = naive - off * 60000;
+  const utc = naive - off * 60000;
   off = utcOffsetMinutes(new Date(utc), tz);
   return naive - off * 60000;
 }
@@ -1472,7 +1471,7 @@ function ItemCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              updateItem(item.id, { confirmation: confirmed ? null : 'confirmed' });
+              void updateItem(item.id, { confirmation: confirmed ? null : 'confirmed' });
             }}
             title={confirmed ? 'Mark unconfirmed' : 'Mark confirmed'}
             style={{
@@ -1510,7 +1509,7 @@ function ItemCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              duplicateItem(item.id);
+              void duplicateItem(item.id);
             }}
             title="Duplicate"
             style={{
@@ -1546,7 +1545,7 @@ function ItemCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (window.confirm('Delete this item?')) deleteItem(item.id);
+              if (window.confirm('Delete this item?')) void deleteItem(item.id);
             }}
             style={{
               background: 'none',
@@ -1807,7 +1806,7 @@ function DuplicateOverlay({ state }: { state: EditorState }): JSX.Element | null
           Confirm
         </button>
         <button
-          onClick={cancelDuplicate}
+          onClick={() => void cancelDuplicate()}
           style={{
             padding: '6px 12px',
             borderRadius: 16,

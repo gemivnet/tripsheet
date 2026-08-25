@@ -157,6 +157,22 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', '*.js'],
+    // web/ came under the linter later than src/ and is JSX-heavy, where some of the
+    // rules above fight the idiom rather than catching defects. These are relaxed here
+    // and here only. Everything that can catch a real bug stays an error.
+    files: ['web/src/**/*.{ts,tsx}'],
+    rules: {
+      // Nested ternaries are how conditional rendering is written in JSX. 22 of them
+      // here, none of them a defect.
+      'no-nested-ternary': 'off',
+      // React's own prop types use `{}`-shaped interfaces in places.
+      '@typescript-eslint/no-empty-object-type': 'off',
+      // React 19's types deprecate several event aliases still used throughout. Worth
+      // migrating deliberately, not as a side effect of turning the linter on.
+      '@typescript-eslint/no-deprecated': 'warn',
+    },
+  },
+  {
+    ignores: ['dist/', 'node_modules/', 'web/dist/', '*.js'],
   },
 );
