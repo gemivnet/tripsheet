@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 const ConfigSchema = z.object({
   port: z.number().int().positive().default(3000),
-  allowed_emails: z.array(z.string().email()).min(1),
+  allowed_emails: z.array(z.email()).min(1),
   ai: z
     .object({
       model: z.string().default('claude-sonnet-4-5'),
