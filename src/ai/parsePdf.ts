@@ -62,7 +62,7 @@ const ParsedSchema = z.object({
       tz: z.string().max(60).nullable().optional(),
       end_tz: z.string().max(60).nullable().optional(),
       // Kind-specific structured attributes (airline, venue_name, etc.)
-      attributes: z.record(z.unknown()).optional(),
+      attributes: z.record(z.string(), z.unknown()).optional(),
     }),
   ),
 });
