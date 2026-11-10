@@ -12,12 +12,12 @@ const ConfigSchema = z.object({
       max_suggestions: z.number().int().positive().default(8),
       max_web_searches: z.number().int().min(0).default(6),
     })
-    .default({}),
+    .prefault({}),
   uploads: z
     .object({
       max_bytes: z.number().int().positive().default(26_214_400),
     })
-    .default({}),
+    .prefault({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
