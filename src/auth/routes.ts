@@ -7,13 +7,13 @@ import { hashPassword, verifyPassword } from './hash.js';
 import { requireAuth, authed } from './middleware.js';
 
 const SignupBody = z.object({
-  email: z.string().email(),
+  email: z.email(),
   display_name: z.string().min(1).max(64),
   password: z.string().min(8).max(256),
 });
 
 const LoginBody = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1),
 });
 
