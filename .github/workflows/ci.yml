@@ -3,6 +3,8 @@ name: CI/CD
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -63,7 +65,8 @@ jobs:
 
       - name: Test report annotations
         uses: dorny/test-reporter@v1
-        if: always() && hashFiles('reports/junit.xml') != ''
+        # Dependabot and fork PRs get a read-only token, which cannot create a check run.
+        if: always() && github.event_name == 'push' && hashFiles('reports/junit.xml') != ''
         with:
           name: Jest Results
           path: reports/junit.xml
@@ -71,7 +74,7 @@ jobs:
           fail-on-error: false
 
       - name: Upload to Codecov
-        if: steps.tests.outcome == 'success'
+        if: github.event_name == 'push' && steps.tests.outcome == 'success'
         uses: codecov/codecov-action@v5
         with:
           files: coverage/lcov.info
@@ -106,6 +109,7 @@ jobs:
   release:
     name: Build & Publish
     needs: [lint, test]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
