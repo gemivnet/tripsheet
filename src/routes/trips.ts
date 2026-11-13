@@ -37,7 +37,7 @@ const ItemBody = z.object({
   start_time: z.string().max(20).nullable().optional(),
   end_time: z.string().max(20).nullable().optional(),
   location: z.string().max(300).nullable().optional(),
-  url: z.string().url().max(1000).nullable().optional(),
+  url: z.url().max(1000).nullable().optional(),
   confirmation: z.string().max(200).nullable().optional(),
   hours: z.string().max(300).nullable().optional(),
   cost: z.string().max(60).nullable().optional(),
@@ -167,7 +167,9 @@ export function tripsRouter(db: DB, uploadDir?: string): Router {
           headless: true,
         });
         const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+        // The template is self-contained (inline CSS, no remote fonts or images), so
+        // `load` is the whole wait. puppeteer 25 dropped the network-idle options here.
+        await page.setContent(html, { waitUntil: 'load' });
         const pdf = await page.pdf({
           format: 'A4',
           printBackground: true,
